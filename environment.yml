@@ -1,0 +1,30 @@
+name: gnn
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+- python=3.9
+- pip
+- pandas
+- argh
+- matplotlib
+- rich
+- numpy
+- pytorch
+- pip:
+  - selfies
+  - gevent
+  - more_itertools
+  - rdkit
+  - gunicorn
+  - pytest
+  - scikit-learn==1.1.0
+  - dataclasses-json
+  - mols2grid
+  - PyTDC==0.4.1
+  - networkx
+  - flask
+  - flask_sqlalchemy
+  - flask_socketio
