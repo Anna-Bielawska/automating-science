@@ -1,7 +1,6 @@
 name: gnn
 channels:
   - pytorch
-  - nvidia
   - conda-forge
   - defaults
 dependencies:
