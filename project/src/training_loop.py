@@ -1,6 +1,5 @@
 import os
 import numpy as np
-from sympy import Q
 import torch
 import torch_geometric
 from datetime import datetime
