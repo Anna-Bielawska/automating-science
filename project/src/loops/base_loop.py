@@ -16,14 +16,13 @@ logger = logging.getLogger(__name__)
 SAS_THRESHOLD = 4.0
 
 
-class Loop:
+class BaseLoop:
     """Base class for AL loop"""
 
     def __init__(
         self,
         base_dir: Union[str, Path],
-        user_token: Optional[str] = None,
-        target="DRD2",
+        target="GSK3β",
     ):
         """
         :param base_dir: directory where the results will be stored
@@ -33,7 +32,6 @@ class Loop:
         self.base_dir = base_dir if isinstance(base_dir, Path) else Path(base_dir)
         logger.info(f"Saving results to {self.base_dir}.")
         self.target = target
-        self.user_token = user_token
         if not self.base_dir.exists():
             self.base_dir.mkdir(parents=True)
 

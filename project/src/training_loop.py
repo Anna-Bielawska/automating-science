@@ -98,7 +98,6 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     base_loop2 = MutateLoop(
         base_dir=hydra_output_dir / "mutate_loop",
         n_warmup_iterations=3,
-        target="GSK3β",
         initial_dataset=compounds_sample,
     )
 
@@ -106,7 +105,6 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
         base_dir=hydra_output_dir / "gcn_loop",
         n_warmup_iterations=2,
         base_loop=base_loop2,
-        target="GSK3β",
         model=model,
     )
 
