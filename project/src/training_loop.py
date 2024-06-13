@@ -1,8 +1,13 @@
+import os
+import numpy as np
+from sympy import Q
 import torch
 import torch_geometric
 from datetime import datetime
 
 from config.main_config import MainConfig
+from src.loops.mutate_loop import MutateLoop
+from src.loops.gnn_loop import GNNLoop
 import src.models.model_registry
 from src.utils.training import (
     train_epoch,
@@ -17,6 +22,37 @@ from sklearn.model_selection import train_test_split
 import src.models
 
 logger = logging.getLogger(__name__)
+
+
+def run(loop, budget=1000, steps=10):
+    os.makedirs(loop.base_dir, exist_ok=True)
+
+    if loop.n_iterations > 0:
+        raise ValueError(
+            f"Already run. Please remove the folder {loop.base_dir} to run again."
+        )
+
+    metrics = []
+    all_result: list[LeadCompound] = []
+    budget_per_step = budget // steps
+    assert budget % steps == 0  # for simplicity
+    for step in range(steps):
+        logger.info(f"Step {step}")
+
+        candidates = loop.propose_candidates(budget_per_step)
+        loop.test_in_lab_and_save(candidates)
+        result: list[LeadCompound] = loop.load(iteration_id=step)
+        all_result += result
+        all_result_sorted = sorted(all_result, key=lambda x: x.activity, reverse=True)
+
+        metrics.append(
+            {
+                "top10": np.mean([x.activity for x in all_result_sorted[:10]]),
+                "top10_synth": np.mean([x.synth_score for x in all_result_sorted[:10]]),
+            }
+        )
+
+    return metrics
 
 
 def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
@@ -59,3 +95,21 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
         logger.info(f"Epoch {epoch + 1} completed.")
 
     torch.save(model.state_dict(), hydra_output_dir / f"model_{datetime.now()}.pth")
+
+    base_loop2 = MutateLoop(
+        base_dir=hydra_output_dir / "mutate_loop",
+        n_warmup_iterations=3,
+        target="GSK3β",
+        initial_dataset=compounds_sample,
+    )
+
+    gcnloop = GNNLoop(
+        base_dir=hydra_output_dir / "gcn_loop",
+        n_warmup_iterations=2,
+        base_loop=base_loop2,
+        target="GSK3β",
+        model=model,
+    )
+
+    gcn_ml_metrics = run(gcnloop, budget=1000, steps=10)
+    print(gcn_ml_metrics)
