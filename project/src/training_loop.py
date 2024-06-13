@@ -24,7 +24,7 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     dataset_space = SmallZINC()
     compounds_sample = [
         LeadCompound(smiles=smile, synth_score=None, activity=None)
-        for smile in dataset_space.try_sample(1000)
+        for smile in dataset_space.try_sample(cfg.candidates_sample_size)
     ]
     geo_data_sample = [from_lead_compound(compound) for compound in compounds_sample]
 
