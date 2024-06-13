@@ -1,6 +1,5 @@
 import torch
 import torch_geometric
-from src.models.gcn import GraphNeuralNetwork
 from datetime import datetime
 
 from config.main_config import MainConfig
