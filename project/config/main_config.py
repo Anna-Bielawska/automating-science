@@ -22,6 +22,9 @@ class MainConfig:
         ]
     )
 
+    # how many samples to take from the dataset
+    candidates_sample_size: int = 1000
+
     # dataset
     dataset_path: str = "datasets"
 

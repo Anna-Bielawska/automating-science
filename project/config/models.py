@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import MISSING
 
 
@@ -32,8 +32,8 @@ class GraphNeuralNetworkParams(BaseModelParams):
     """
 
     input_dim: int = 34  # Input size for ZINC
-    dimensions: list[int] = [128, 128]  # Placeholder values
-    dropout_rates: list[float] = [0.1, 0.1]  # Placeholder values
+    dimensions: list[int] = field(default_factory=lambda: [128, 128])
+    dropout_rates: list[float] = field(default_factory=lambda: [0.1, 0.1])
 
 
 @dataclass
