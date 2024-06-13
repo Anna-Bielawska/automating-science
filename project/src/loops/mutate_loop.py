@@ -1,12 +1,12 @@
 import random
 from src.utils.mutate import mutate_selfie
 from src.utils.molecules import LeadCompound, compute_ertl_score
-from src.loops.base_loop import Loop
+from src.loops.base_loop import BaseLoop
 from pathlib import Path
 import selfies
 
 
-class MutateLoop(Loop):
+class MutateLoop(BaseLoop):
     """Implementation of AL algorithm that mutates top compounds from the previous iterations.
 
     Mutate loop should first search random and then mutate top compounds
@@ -18,13 +18,12 @@ class MutateLoop(Loop):
         base_dir: Path,
         n_warmup_iterations: int = 1,
         mutate_top_k: int = 10,
-        user_token=None,
         target="DRD2",
     ):
         self.initial_dataset = initial_dataset
         self.n_warmup_iterations = n_warmup_iterations
         self.mutate_top_k = mutate_top_k
-        super().__init__(base_dir, user_token, target)
+        super().__init__(base_dir, target)
 
     def _propose_random(self, n_candidates: int) -> list[LeadCompound]:
         return random.sample(self.initial_dataset, k=n_candidates)

@@ -7,8 +7,9 @@ from pathlib import Path
 
 import torch
 import torch_geometric
+from config.loops import GNNLoopConfig
 from src.loops.loop_registry import register_loop
-from src.loops.base_loop import Loop
+from src.loops.base_loop import BaseLoop
 from src.utils.molecules import LeadCompound, from_lead_compound
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,8 @@ def predict(model, test_loader):
     return preds
 
 
-@register_loop("GNNLoop")
-class GNNLoop(Loop):
+@register_loop(GNNLoopConfig().name)
+class GNNLoop(BaseLoop):
     """
     Your final implementation of the experimental loop.
 
@@ -43,16 +44,15 @@ class GNNLoop(Loop):
     def __init__(
         self,
         base_dir: Path,
-        base_loop: Loop,
+        base_loop: BaseLoop,
+        model: torch.nn.Module,
         n_warmup_iterations: int = 1,
-        user_token=None,
-        target="DRD2",
-        model=None,
+        target="GSK3β",
     ):
         self.base_loop = base_loop
         self.n_warmup_iterations = n_warmup_iterations
         self._model = copy.deepcopy(model).to("cuda")
-        super().__init__(base_dir, user_token, target)
+        super().__init__(base_dir, target)
 
     def _split(self, X: list[LeadCompound]) -> tuple:
         X_temp, X_test = train_test_split(X, test_size=0.2, random_state=42)
