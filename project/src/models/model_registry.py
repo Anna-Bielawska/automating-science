@@ -7,7 +7,7 @@ MODEL_REGISTRY: dict[str, torch.nn.Module] = {}
 
 def register_model(name: str) -> Callable:
     def wrapper(cls: Type[torch.nn.Module]) -> Type[torch.nn.Module]:
-        MODEL_REGISTRY[cls.__name__] = cls
+        MODEL_REGISTRY[name] = cls
         return cls
 
     return wrapper
