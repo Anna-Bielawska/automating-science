@@ -3,6 +3,7 @@ from typing import Any
 
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING
+from config.models import BaseModelConfig, GraphNeuralNetworkConfig
 
 
 @dataclass
@@ -17,6 +18,7 @@ class MainConfig:
     defaults: list[Any] = field(
         default_factory=lambda: [
             "_self_",
+            {"model": "_"},
         ]
     )
 
@@ -29,9 +31,7 @@ class MainConfig:
     # training
     num_epochs: int = 5
 
-    # model
-    hidden_dim: int = 64
-
+    model: BaseModelConfig = MISSING
     optimizer: OptimizerConfig = field(
         default_factory=lambda: OptimizerConfig(lr=0.001, weight_decay=0.00005)
     )
@@ -42,3 +42,10 @@ class MainConfig:
 # register the config groups
 config_store = ConfigStore.instance()
 config_store.store(name="main_config", node=MainConfig)
+
+# models
+config_store.store(
+    group="model",
+    name=GraphNeuralNetworkConfig().name,
+    node=GraphNeuralNetworkConfig,
+)

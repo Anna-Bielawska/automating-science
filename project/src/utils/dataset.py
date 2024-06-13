@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from torch_geometric.data import Data
 import torch
-import torch_geometric
 
 RdkitCanonicalSmiles = str
 
