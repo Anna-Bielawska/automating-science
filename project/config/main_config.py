@@ -4,6 +4,7 @@ from typing import Any
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING
 from config.models import BaseModelConfig, GraphNeuralNetworkConfig
+from config.loops import GNNLoopConfig, BaseLoopConfig
 
 
 @dataclass
@@ -16,14 +17,11 @@ class OptimizerConfig:
 @dataclass
 class MainConfig:
     defaults: list[Any] = field(
-        default_factory=lambda: [
-            "_self_",
-            {"model": "_"},
-        ]
+        default_factory=lambda: ["_self_", {"model": "_"}, {"loop": "_"}]
     )
 
-    # how many samples to take from the dataset
-    candidates_sample_size: int = 1000
+    # budget for the experiment (samples to generate from the dataset)
+    candidates_budget: int = 1000
 
     # dataset
     dataset_path: str = "datasets"
@@ -33,6 +31,8 @@ class MainConfig:
 
     # training
     num_epochs: int = 5
+
+    loop: BaseLoopConfig = MISSING
 
     model: BaseModelConfig = MISSING
     optimizer: OptimizerConfig = field(
@@ -51,4 +51,11 @@ config_store.store(
     group="model",
     name=GraphNeuralNetworkConfig().name,
     node=GraphNeuralNetworkConfig,
+)
+
+# loops
+config_store.store(
+    group="loop",
+    name=GNNLoopConfig().name,
+    node=GNNLoopConfig,
 )
