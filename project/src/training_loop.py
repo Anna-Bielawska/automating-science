@@ -4,6 +4,7 @@ from src.models.gcn import GraphNeuralNetwork
 from datetime import datetime
 
 from config.main_config import MainConfig
+import src.models.model_registry
 from src.utils.training import (
     train_epoch,
     validate_epoch,
@@ -13,6 +14,7 @@ import logging
 from pathlib import Path
 from src.utils.dataset import SmallZINC, from_lead_compound, LeadCompound
 from sklearn.model_selection import train_test_split
+import src.models
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +43,9 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
         batch_size=cfg.batch_size,
         shuffle=False,
     )
+    model = src.models.model_registry.create_model(cfg.model.name, **cfg.model.params)
+    model = model.to(device)
 
-    model = GraphNeuralNetwork(
-        input_dim=geo_data_sample[0].x.size(-1),
-        model_dim=[128, 128],
-        dropout_rate=[0.2, 0.1],
-    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), **cfg.optimizer)
     criterion = MAELoss()
 

@@ -1,56 +1,52 @@
 import torch
 from torch_geometric.data import Batch
 from torch_geometric.nn import GCNConv, global_mean_pool, global_max_pool
+from src.models.model_registry import register_model
+from config.models import GraphNeuralNetworkConfig
 
 
+@register_model(GraphNeuralNetworkConfig().name)
 class GraphNeuralNetwork(torch.nn.Module):
     def __init__(
         self,
-        model_dim: list[int],
-        dropout_rate: list[float],
+        dimensions: list[int],
+        dropout_rates: list[float],
         input_dim: int = 100,
         output_dim: int = 1,
         concat_max_pooling: bool = False,
     ):
         assert (
-            len(model_dim) == len(dropout_rate)
-        ), f"Specified {len(model_dim)} convolutional layers, but {len(dropout_rate)} dropout rates "
+            len(dimensions) == len(dropout_rates)
+        ), f"Specified {len(dimensions)} convolutional layers, but {len(dropout_rates)} dropout rates "
 
         super().__init__()
 
-        self.model_dim = model_dim
-        self.layers_num = len(model_dim)
-        self.dropout_rate = dropout_rate
+        layers_num = len(dimensions)
         self.concat_max_pooling = concat_max_pooling
 
         self.conv_layers = torch.nn.ModuleList(
-            [GCNConv(in_channels=input_dim, out_channels=self.model_dim[0])]
+            [GCNConv(in_channels=input_dim, out_channels=dimensions[0])]
             + [
-                GCNConv(
-                    in_channels=self.model_dim[i], out_channels=self.model_dim[i + 1]
-                )
-                for i in range(0, self.layers_num - 1)
+                GCNConv(in_channels=dimensions[i], out_channels=dimensions[i + 1])
+                for i in range(0, layers_num - 1)
             ]
         )
 
         self.drop_layers = torch.nn.ModuleList(
-            [
-                torch.nn.Dropout(p=self.dropout_rate[j])
-                for j in range(len(self.conv_layers))
-            ]
+            [torch.nn.Dropout(p=dropout_rates[j]) for j in range(len(self.conv_layers))]
         )
 
         self.batch_norms = torch.nn.ModuleList(
             [
-                torch.nn.BatchNorm1d(num_features=self.model_dim[j])
+                torch.nn.BatchNorm1d(num_features=dimensions[j])
                 for j in range(len(self.conv_layers))
             ]
         )
 
         self.out_layer = (
-            torch.nn.Linear(2 * model_dim[-1], output_dim)
+            torch.nn.Linear(2 * dimensions[-1], output_dim)
             if self.concat_max_pooling
-            else torch.nn.Linear(model_dim[-1], output_dim)
+            else torch.nn.Linear(dimensions[-1], output_dim)
         )
 
     def forward(self, data: Batch) -> torch.Tensor:
