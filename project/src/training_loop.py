@@ -6,7 +6,7 @@ from datetime import datetime
 
 from config.main_config import MainConfig
 from src.loops.mutate_loop import MutateLoop
-from src.loops.gnn_loop import GNNLoop
+from src.loops.loop_registry import create_loop
 import src.models.model_registry
 from src.utils.training import (
     train_epoch,
@@ -60,7 +60,7 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     dataset_space = SmallZINC()
     compounds_sample = [
         LeadCompound(smiles=smile, synth_score=None, activity=None)
-        for smile in dataset_space.try_sample(cfg.candidates_sample_size)
+        for smile in dataset_space.try_sample(cfg.candidates_budget)
     ]
     geo_data_sample = [from_lead_compound(compound) for compound in compounds_sample]
 
@@ -101,12 +101,13 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
         initial_dataset=compounds_sample,
     )
 
-    gcnloop = GNNLoop(
-        base_dir=hydra_output_dir / "gcn_loop",
-        n_warmup_iterations=2,
+    candidates_loop = create_loop(
+        cfg.loop.name,
+        base_dir=hydra_output_dir / cfg.loop.name,
         base_loop=base_loop2,
         model=model,
+        **cfg.loop.params,
     )
 
-    gcn_ml_metrics = run(gcnloop, budget=1000, steps=10)
+    gcn_ml_metrics = run(candidates_loop, budget=cfg.candidates_budget, steps=10)
     print(gcn_ml_metrics)
