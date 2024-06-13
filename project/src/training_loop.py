@@ -11,7 +11,8 @@ from src.utils.training import (
 )
 import logging
 from pathlib import Path
-from src.utils.dataset import SmallZINC, from_lead_compound, LeadCompound
+from src.utils.dataset import SmallZINC
+from src.utils.molecules import LeadCompound, from_lead_compound
 from sklearn.model_selection import train_test_split
 import src.models
 
