@@ -4,8 +4,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torch_geometric
-from torch_geometric.utils import degree
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +43,7 @@ def train_epoch(
         optimizer.zero_grad()
 
         # Compute prediction error
-        pred = module(data.x, data.edge_index, data.edge_attr, data.batch).squeeze()
+        pred = module(data).squeeze()
         loss = loss_function(pred, labels)
 
         # Backpropagation
@@ -95,7 +93,7 @@ def validate_epoch(
             labels = data.y
 
             # Compute prediction error
-            pred = module(data.x, data.edge_index, data.edge_attr, data.batch).squeeze()
+            pred = module(data).squeeze()
             loss = loss_function(pred, labels)
 
             metrics["validation_loss"] += loss.item()
@@ -113,37 +111,6 @@ def validate_epoch(
         metrics[name] /= len(valid_dl)
 
     return metrics
-
-
-def calculate_indegree_histogram(dataset: torch_geometric.data.Dataset) -> torch.Tensor:
-    """Calculate the in-degree histogram of the dataset.
-
-    Args:
-        dataset (torch_geometric.data.Dataset): The dataset to calculate the in-degree histogram for.
-
-    Returns:
-        torch.Tensor: Tensor with count of nodes with each in-degree.
-        Shape: [0, 1, ..., max_indegree + 1]
-    """
-
-    # Compute the maximum in-degree in the training data.
-    degrees = (
-        degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        for data in dataset
-    )
-    max_indegree = max(int(d.max()) for d in degrees)
-
-    logger.info(f"Max in-degree: {max_indegree}")
-
-    # Compute the in-degree histogram tensor
-    deg = torch.zeros(max_indegree + 1, dtype=torch.long)
-    for data in dataset:
-        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        deg += torch.bincount(d, minlength=deg.numel())
-
-    logger.info(f"Degree histogram: {deg}")
-
-    return deg
 
 
 class MAELoss(torch.nn.Module):

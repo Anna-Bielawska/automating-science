@@ -1,18 +1,18 @@
 import torch
 import torch_geometric
-from src.models.pna import PNA
-from torch_geometric.datasets import ZINC
+from src.models.gcn import GraphNeuralNetwork
 from datetime import datetime
 
 from config.main_config import MainConfig
 from src.utils.training import (
     train_epoch,
     validate_epoch,
-    calculate_indegree_histogram,
     MAELoss,
 )
 import logging
 from pathlib import Path
+from src.utils.dataset import SmallZINC, from_lead_compound, LeadCompound
+from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger(__name__)
 
@@ -20,23 +20,33 @@ logger = logging.getLogger(__name__)
 def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    zinc_train = ZINC(root=cfg.dataset_path, subset=True, split="train")
-    zinc_valid = ZINC(root=cfg.dataset_path, subset=True, split="val")
+    dataset_space = SmallZINC()
+    compounds_sample = [
+        LeadCompound(smiles=smile, synth_score=None, activity=None)
+        for smile in dataset_space.try_sample(1000)
+    ]
+    geo_data_sample = [from_lead_compound(compound) for compound in compounds_sample]
+
+    geo_data_sample_train, geo_data_sample_valid = train_test_split(
+        geo_data_sample, test_size=0.2
+    )
 
     train_dl = torch_geometric.loader.DataLoader(
-        zinc_train,
+        geo_data_sample_train,
         batch_size=cfg.batch_size,
         shuffle=True,
     )
     valid_dl = torch_geometric.loader.DataLoader(
-        zinc_valid,
+        geo_data_sample_valid,
         batch_size=cfg.batch_size,
         shuffle=False,
     )
 
-    indegree_histogram = calculate_indegree_histogram(zinc_train)
-
-    model = PNA(indegree_histogram).to(device)
+    model = GraphNeuralNetwork(
+        input_dim=geo_data_sample[0].x.size(-1),
+        model_dim=[128, 128],
+        dropout_rate=[0.2, 0.1],
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), **cfg.optimizer)
     criterion = MAELoss()
 
