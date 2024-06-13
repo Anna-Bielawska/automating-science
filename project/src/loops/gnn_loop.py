@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 import torch_geometric
+from src.loops.loop_registry import register_loop
 from src.loops.base_loop import Loop
 from src.utils.molecules import LeadCompound, from_lead_compound
 
@@ -27,6 +28,7 @@ def predict(model, test_loader):
     return preds
 
 
+@register_loop("GNNLoop")
 class GNNLoop(Loop):
     """
     Your final implementation of the experimental loop.
