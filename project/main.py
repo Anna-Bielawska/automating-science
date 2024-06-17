@@ -5,7 +5,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 
 from config.main_config import MainConfig
-from src.training_loop import training_loop
+from src.experiment_loop import start_experiment_loop
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def main(cfg: MainConfig) -> None:
     )
     logger.info(f"Hydra output directory: {hydra_output_dir}")
 
-    training_loop(cfg, hydra_output_dir)
+    start_experiment_loop(cfg, hydra_output_dir)
 
 
 if __name__ == "__main__":
