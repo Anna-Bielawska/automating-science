@@ -110,4 +110,4 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     )
 
     gcn_ml_metrics = run(candidates_loop, budget=cfg.candidates_budget, steps=10)
-    print(gcn_ml_metrics)
+    logger.info(gcn_ml_metrics)
