@@ -5,7 +5,14 @@ Loop implementations are tested on the `ZINC` dataset.
 
 
 ### Usage
-To start the benchmark, run the following command:
+To start the benchmark, you need to provide the necessary configuration parameters through the command line.
+
+The benchmark is started by running the `main.py` script with the desired configuration parameters.
+
+Currently, the required configuration parameters are:
+- `num_epochs` - number of epochs to run the benchmark for
+- `model` - the model to use for the benchmark
+- `loop` - the loop to use for the benchmark
 
 Example command to run the benchmark:
 ```bash
