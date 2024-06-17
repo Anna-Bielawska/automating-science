@@ -56,8 +56,9 @@ def run(loop, budget=1000, steps=10):
     return metrics
 
 
-def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
+def start_experiment_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    experiment_start_time = datetime.now().strftime("%b%d_%H-%M-%S")
 
     dataset_space = SmallZINC()
     compounds_sample = [
@@ -95,7 +96,9 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
         logger.info(f"Validation error: {metrics['validation_loss']}")
         logger.info(f"Epoch {epoch + 1} completed.")
 
-    torch.save(model.state_dict(), hydra_output_dir / f"model_{datetime.now()}.pth")
+    torch.save(
+        model.state_dict(), hydra_output_dir / f"model_{experiment_start_time}.pth"
+    )
 
     base_loop2 = MutateLoop(
         base_dir=hydra_output_dir / "mutate_loop",
@@ -115,5 +118,5 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     logger.info(f"Loop metrics: {loop_run_metrics}")
 
     # save metrics as json file
-    with open(hydra_output_dir / "metrics.json", "w") as f:
+    with open(hydra_output_dir / f"metrics_{experiment_start_time}.json", "w") as f:
         json.dump(loop_run_metrics, f)
