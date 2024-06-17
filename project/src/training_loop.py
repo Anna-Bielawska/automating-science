@@ -47,6 +47,7 @@ def run(loop, budget=1000, steps=10):
 
         metrics.append(
             {
+                "step": step,
                 "top10": np.mean([x.activity for x in all_result_sorted[:10]]),
                 "top10_synth": np.mean([x.synth_score for x in all_result_sorted[:10]]),
             }
