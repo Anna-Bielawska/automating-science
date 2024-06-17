@@ -1,3 +1,4 @@
+import json
 import os
 import numpy as np
 import torch
@@ -109,5 +110,9 @@ def training_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
         **cfg.loop.params,
     )
 
-    gcn_ml_metrics = run(candidates_loop, budget=cfg.candidates_budget, steps=10)
-    logger.info(gcn_ml_metrics)
+    loop_run_metrics = run(candidates_loop, budget=cfg.candidates_budget, steps=10)
+    logger.info(f"Loop metrics: {loop_run_metrics}")
+
+    # save metrics as json file
+    with open(hydra_output_dir / "metrics.json", "w") as f:
+        json.dump(loop_run_metrics, f)
