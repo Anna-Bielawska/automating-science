@@ -97,16 +97,6 @@ def from_lead_compound(
     Returns:
         torch_geometric.data.Data: Torch Geometric Data object with edge_weight and smiles atrributes.
     """
-    r"""Converts a LeadCompound to a :class:`torch_geometric.data.Data`
-    instance.
-
-    Args:
-        compound (LeadCompound): The LeadCompound object.
-        with_hydrogen (bool, optional): If set to :obj:`True`, will store
-            hydrogens in the molecule graph. (default: :obj:`False`)
-        kekulize (bool, optional): If set to :obj:`True`, converts aromatic
-            bonds to single/double bonds. (default: :obj:`False`)
-    """
 
     smiles = compound.smiles
     mol = Chem.MolFromSmiles(smiles)
