@@ -16,8 +16,8 @@ class OptimizerConfig:
 
 @dataclass
 class EarlyStoppingConfig:
-    enabled: bool = False
-    patience: int = 10
+    enabled: bool = True
+    patience: int = 2
     min_delta: float = 1e-4
 
 
@@ -27,7 +27,7 @@ class PretrainConfig:
     compounds_budget: int = 1000
     loop_steps: int = 10
 
-    num_epochs: int = 1
+    num_epochs: int = 100
     batch_size: int = 32
     split_ratio: float = 0.2
     dataset_path: str = "datasets"
@@ -45,9 +45,8 @@ class PretrainConfig:
 class TrainConfig:
     compounds_budget: int = 1000
     loop_steps: int = 10
-    compounds_multiplier: int = 3
     
-    num_epochs: int = 3
+    num_epochs: int = 100
     batch_size: int = 8
     split_ratio: float = 0.2
     dataset_path: str = "datasets"
