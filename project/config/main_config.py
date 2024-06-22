@@ -32,7 +32,7 @@ class PretrainConfig:
     split_ratio: float = 0.2
     dataset_path: str = "datasets"
 
-    save_model: bool = True
+    save_model: bool = False
 
     early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
 
@@ -52,7 +52,7 @@ class TrainConfig:
     split_ratio: float = 0.2
     dataset_path: str = "datasets"
 
-    save_model: bool = True
+    save_model: bool = False
 
     loop: BaseLoopConfig = MISSING
     early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
