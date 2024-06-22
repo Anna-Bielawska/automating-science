@@ -17,6 +17,9 @@ class LeadCompound:
     synth_score: Optional[float] = None
     activity: Optional[float] = None
 
+    def __hash__(self):
+        return hash(self.smiles)
+
 
 def compute_ertl_score(compound: str) -> float:
     """Compute Ertl (Synthetic Accessibility) score for a compound.

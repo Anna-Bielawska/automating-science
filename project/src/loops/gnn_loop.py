@@ -1,32 +1,23 @@
-import copy
 import logging
 
 import numpy as np
-from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 import torch
-import torch_geometric
-from config.loops import GNNLoopConfig
+import torch_geometric as pyg
+from config.loops import GNNLoopConfig, GNNLoopParams
+from config.main_config import TrainConfig
 from src.loops.loop_registry import register_loop
 from src.loops.base_loop import BaseLoop
 from src.utils.molecules import LeadCompound, from_lead_compound
+from src.utils.training import (
+    get_data_loaders,
+    train_epoch,
+    validate_epoch,
+    EarlyStopper,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def predict(model, test_loader):
-    # evaluation loop
-    model.eval()
-    preds_batches = []
-    with torch.no_grad():
-        # for data in tqdm(test_loader):
-        for data in test_loader:
-            data = data.to("cuda")
-            preds = model(data)
-            preds_batches.append(preds.cpu().detach().numpy())
-    preds = np.concatenate(preds_batches)
-    return preds
 
 
 @register_loop(GNNLoopConfig().name)
@@ -43,73 +34,123 @@ class GNNLoop(BaseLoop):
 
     def __init__(
         self,
+        loop_params: GNNLoopParams,
+        train_cfg: TrainConfig,
         base_dir: Path,
         base_loop: BaseLoop,
         model: torch.nn.Module,
-        n_warmup_iterations: int = 1,
-        target="GSK3β",
+        device: torch.device = torch.device("cuda"),
+        target: str = "GSK3β",
     ):
+        super().__init__(loop_params, base_dir, target, train_cfg)
+        self.loop_params: GNNLoopParams
         self.base_loop = base_loop
-        self.n_warmup_iterations = n_warmup_iterations
-        self._model = copy.deepcopy(model).to("cuda")
-        super().__init__(base_dir, target)
+        self.model = model
+        self.train_metrics = []
+        self.device = device
 
-    def _split(self, X: list[LeadCompound]) -> tuple:
-        X_temp, X_test = train_test_split(X, test_size=0.2, random_state=42)
-        X_train, X_valid = train_test_split(X_temp, test_size=0.2, random_state=42)
-        return X_train, X_valid, X_test
-
-    def _get_dataloader(
-        self, data: list[LeadCompound], batch_size: int = 16, shuffle: bool = False
-    ) -> torch_geometric.loader.DataLoader:
-        data = [from_lead_compound(candidate) for candidate in data]
-
-        loader = torch_geometric.loader.DataLoader(
-            data, batch_size=batch_size, shuffle=shuffle
+        self.optimizer = torch.optim.AdamW(
+            self.model.parameters(), **self.training_cfg.optimizer
         )
-
-        return loader
+        self.loss_function = torch.nn.MSELoss()
+        self.early_stopping = EarlyStopper(**self.training_cfg.early_stopping)
 
     def _train_model(self, candidates: list[LeadCompound], epochs: int = 10):
         candidates = [c for c in candidates if c.activity != -1.0]
 
-        X_train, X_valid, X_test = self._split(candidates)
+        train_dl, valid_dl = get_data_loaders(
+            candidates,
+            self.training_cfg.split_ratio,
+            self.training_cfg.batch_size,
+            self.training_cfg.dataset_path,
+        )
 
-        logger.info(f"Training set size: {len(X_train)}")
-        logger.info(f"Validation set size: {len(X_valid)}")
-        logger.info(f"Test set size: {len(X_test)}")
+        train_activity = [c.y for c in train_dl.dataset]
+        top10_activity = sorted(train_activity, reverse=True)[:10]
+        metrics = {
+            "train_loss": None,
+            "valid_loss": None,
+            "activity": {
+                "mean": np.mean(train_activity),
+                "std": np.std(train_activity),
+            },
+            "top_10_activity": {
+                "mean": np.mean(top10_activity),
+                "std": np.std(top10_activity),
+            },
+            "train_size": len(train_dl.dataset),
+            "valid_size": len(valid_dl.dataset),
+        }
+
+        logger.info(f"Training model for {epochs} epochs.")
         logger.info(
-            f"Training set activity mean: {np.mean([c.activity for c in X_train])}"
+            f"Train size: {metrics['train_size']}, "
+            f"Valid size: {metrics['valid_size']}"
         )
         logger.info(
-            f"Training set activity top_10: {sorted([c.activity for c in X_train], reverse=True)[:10]}"
+            f"Activity - mean: {metrics['activity']['mean']:.4f}, "
+            f"std: {metrics['activity']['std']:.4f}"
         )
         logger.info(
-            f"Training set average activity top_10: {np.mean(sorted([c.activity for c in X_train], reverse=True)[:10])}"
+            f"Top 10 activity - mean: {metrics['top_10_activity']['mean']:.4f}, "
+            f"std: {metrics['top_10_activity']['std']:.4f}"
         )
-        logger.info("Proceeding to train GCN")
 
-        train_loader = self._get_dataloader(X_train, batch_size=16, shuffle=True)
+        self.early_stopping.reset()
+        best_model = self.model.state_dict()
+        best_loss = float("inf")
 
-        learning_rate = 1e-4
-        self._model.train()
+        for epoch in range(epochs):
+            train_loss = train_epoch(
+                self.model, train_dl, self.optimizer, self.loss_function, self.device
+            )
+            valid_loss = validate_epoch(
+                self.model, valid_dl, self.loss_function, self.device
+            )
 
-        # training loop
-        optimizer = torch.optim.Adam(self._model.parameters(), lr=learning_rate)
-        loss_fn = torch.nn.MSELoss()
-        for epoch in range(1, epochs + 1):
-            for data in train_loader:
-                data = data.to("cuda")
-                y = data.y
-                self._model.zero_grad()
-                preds = self._model(data)
-                loss = loss_fn(preds, y.reshape(-1, 1))
-                loss.backward()
-                optimizer.step()
+            logger.info(
+                f"Epoch {epoch + 1}: Train loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}"
+            )
 
-            logger.info(f"Epoch {epoch}, loss: {loss.item()}")
+            if self.early_stopping.enabled and self.early_stopping.check_stop(
+                valid_loss
+            ):
+                logger.info("Early stopping triggered.")
+                break
 
-        return self._model
+            if valid_loss < best_loss:
+                best_loss = valid_loss
+                best_model = self.model.state_dict()
+                metrics["train_loss"] = train_loss
+                metrics["valid_loss"] = valid_loss
+
+        self.model.load_state_dict(best_model)
+
+        return metrics
+
+    def _predict(self, candidates: list[LeadCompound]) -> list[float]:
+        pyg_data = [
+            from_lead_compound(compound, self.training_cfg.dataset_path)
+            for compound in candidates
+        ]
+
+        test_dl = pyg.loader.DataLoader(
+            pyg_data,
+            batch_size=self.training_cfg.batch_size,
+            shuffle=True,
+        )
+
+        # evaluation loop
+        self.model.eval()
+        preds_batches = []
+        with torch.no_grad():
+            for data in test_dl:
+                data = data.to(self.device)
+                preds = self.model(data)
+                preds_batches.append(preds.cpu().detach().numpy())
+
+        preds = np.concatenate(preds_batches)
+        return preds.flatten()
 
     def _select_top_N(
         self, candidates: list[LeadCompound], n_select: int
@@ -122,11 +163,9 @@ class GNNLoop(BaseLoop):
                 "No previous results to train on (excluded activity = -1). Perhaps your "
                 "base loop proposes nonsynthetizable compounds?"
             )
-        logger.info(f"Selecting top 10 from {len(candidates)} compounds.")
+        logger.info(f"Selecting top {n_select} from {len(candidates)} compounds.")
 
-        test_loader = self._get_dataloader(candidates, batch_size=16, shuffle=False)
-        y_pred = predict(self._model, test_loader).flatten()
-        # now let's sort the compounds based on their predicted activity
+        y_pred = self._predict(candidates)
         sorted_compounds = [
             c
             for _, c in sorted(
@@ -137,30 +176,35 @@ class GNNLoop(BaseLoop):
         return sorted_compounds[:n_select]
 
     def propose_candidates(self, n_candidates: int) -> list[LeadCompound]:
-        if self.n_iterations < self.n_warmup_iterations:
+        if self.n_iterations < self.loop_params.n_warmup_iterations:
             return self.base_loop.propose_candidates(n_candidates)
 
         # Load previous results
         previous_results: list[LeadCompound] = self.load()
 
         # Train the model
-        self._train_model(previous_results, epochs=1)
+        train_metrics = self._train_model(
+            previous_results, epochs=self.training_cfg.num_epochs
+        )
+        self.train_metrics.append(train_metrics)
 
         # Generate candidates
-        candidates = self.base_loop.propose_candidates(n_candidates)
-        # Gather all candidates
-        all_candidates = previous_results + candidates
+        logging.info(f"Generating {n_candidates} new candidates.")
+        candidates = self.base_loop.propose_candidates(
+            n_candidates * self.training_cfg.compounds_multiplier
+        )
 
         # Remove duplicates based on SMILES strings
-        smiles_seen = set()
-        candidates_unique = []
-        for c in all_candidates:
-            if c.smiles not in smiles_seen:
-                candidates_unique.append(c)
-                smiles_seen.add(c.smiles)
+        smiles_seen = set(previous_results)
+        candidates_unique = set()
 
-        all_candidates = candidates_unique
+        for c in candidates:
+            if c.smiles not in smiles_seen:
+                candidates_unique.add(c)
+                smiles_seen.add(c)
+
+        candidates = list(candidates_unique)
         # Select the top N candidates from previous results and newly sampled compounds, based on the model's predictions
-        top_candidates = self._select_top_N(all_candidates, n_candidates)
+        top_candidates = self._select_top_N(candidates, n_candidates)
 
         return top_candidates

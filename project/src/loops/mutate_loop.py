@@ -4,6 +4,7 @@ from src.utils.molecules import LeadCompound, compute_ertl_score
 from src.loops.base_loop import BaseLoop
 from pathlib import Path
 import selfies
+from config.loops import MutateLoopParams
 
 
 class MutateLoop(BaseLoop):
@@ -14,30 +15,28 @@ class MutateLoop(BaseLoop):
 
     def __init__(
         self,
+        loop_params: MutateLoopParams,
         initial_dataset: list[LeadCompound],
         base_dir: Path,
-        n_warmup_iterations: int = 1,
-        mutate_top_k: int = 10,
-        target="DRD2",
+        target: str = "GSK3β",
     ):
+        super().__init__(loop_params, base_dir, target)
+        self.loop_params: MutateLoopParams
         self.initial_dataset = initial_dataset
-        self.n_warmup_iterations = n_warmup_iterations
-        self.mutate_top_k = mutate_top_k
-        super().__init__(base_dir, target)
 
     def _propose_random(self, n_candidates: int) -> list[LeadCompound]:
         return random.sample(self.initial_dataset, k=n_candidates)
 
     def propose_candidates(self, n_candidates: int) -> list[LeadCompound]:
-        if n_candidates < self.mutate_top_k:
+        if n_candidates < self.loop_params.mutate_top_k:
             raise ValueError(
-                f"n_candidates must be at least mutate_top_k ({self.mutate_top_k})."
+                f"n_candidates must be at least mutate_top_k ({self.loop_params.mutate_top_k})."
             )
 
         if n_candidates == 0:
             return []
 
-        if self.n_iterations < self.n_warmup_iterations:
+        if self.n_iterations < self.loop_params.n_warmup_iterations:
             return self._propose_random(n_candidates)
 
         previous_results: list[LeadCompound] = self.load()
@@ -45,7 +44,8 @@ class MutateLoop(BaseLoop):
             sorted(previous_results, key=lambda m: (-m.activity, -m.synth_score))
         )
         selfie_candidates = [
-            selfies.encoder(m.smiles) for m in candidates[: self.mutate_top_k]
+            selfies.encoder(m.smiles)
+            for m in candidates[: self.loop_params.mutate_top_k]
         ]
 
         new_compounds = []

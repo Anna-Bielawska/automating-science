@@ -10,6 +10,8 @@ from more_itertools import zip_equal
 from src.utils.molecules import LeadCompound, compute_ertl_score
 from src.utils.screening import run_virtual_screening
 import logging
+from config.main_config import TrainConfig
+from config.loops import BaseLoopParams
 
 logger = logging.getLogger(__name__)
 
@@ -21,17 +23,22 @@ class BaseLoop:
 
     def __init__(
         self,
+        loop_params: BaseLoopParams,
         base_dir: Union[str, Path],
         target="GSK3β",
+        training_cfg: TrainConfig = None,
     ):
         """
         :param base_dir: directory where the results will be stored
         :param user_token: token used for the user (each user has up to some limit of calls for each target)
         :param target: target for the virtual screening (DRD2, DRD2_server, ...)
         """
+        self.loop_params = loop_params
         self.base_dir = base_dir if isinstance(base_dir, Path) else Path(base_dir)
-        logger.info(f"Saving results to {self.base_dir}.")
+        self.training_cfg = training_cfg
         self.target = target
+
+        logger.debug(f"The results will be stored in {self.base_dir}")
         if not self.base_dir.exists():
             self.base_dir.mkdir(parents=True)
 
@@ -90,6 +97,8 @@ class BaseLoop:
                 else:
                     c.activity = -1
                 c.synth_score = s_score
+        else:
+            raise NotImplementedError(f"Target {self.target} is not implemented.")
 
         # save results
         save_filename = "{}.json".format(self.n_iterations)

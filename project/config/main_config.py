@@ -15,31 +15,70 @@ class OptimizerConfig:
 
 
 @dataclass
-class MainConfig:
-    defaults: list[Any] = field(
-        default_factory=lambda: ["_self_", {"model": "_"}, {"loop": "_"}]
-    )
+class EarlyStoppingConfig:
+    enabled: bool = False
+    patience: int = 10
+    min_delta: float = 1e-4
 
-    # budget for the experiment (samples to generate from the dataset)
-    candidates_budget: int = 1000
 
-    # dataset
+@dataclass
+class PretrainConfig:
+    enabled: bool = False
+    compounds_budget: int = 1000
+    loop_steps: int = 10
+
+    num_epochs: int = 1
+    batch_size: int = 32
+    split_ratio: float = 0.2
     dataset_path: str = "datasets"
 
-    # dataloaders
-    batch_size: int = 32
+    save_model: bool = True
 
-    # training
-    num_epochs: int = 5
+    early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
 
-    loop: BaseLoopConfig = MISSING
-
-    model: BaseModelConfig = MISSING
     optimizer: OptimizerConfig = field(
-        default_factory=lambda: OptimizerConfig(lr=0.001, weight_decay=0.00005)
+        default_factory=lambda: OptimizerConfig(lr=1e-3, weight_decay=0.00005)
     )
 
+
+@dataclass
+class TrainConfig:
+    compounds_budget: int = 1000
+    loop_steps: int = 10
+    compounds_multiplier: int = 3
+    
+    num_epochs: int = 3
+    batch_size: int = 8
+    split_ratio: float = 0.2
+    dataset_path: str = "datasets"
+
+    save_model: bool = True
+
+    loop: BaseLoopConfig = MISSING
+    early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
+
+    optimizer: OptimizerConfig = field(
+        default_factory=lambda: OptimizerConfig(lr=5e-4, weight_decay=0.00005)
+    )
+
+
+@dataclass
+class MainConfig:
+    defaults: list[Any] = field(
+        default_factory=lambda: [
+            "_self_",
+            {"model": "_"},
+            {"training.loop": "_"},
+        ]
+    )
+    model: BaseModelConfig = MISSING
+    pretraining: PretrainConfig = field(default_factory=PretrainConfig)
+    training: TrainConfig = field(default_factory=TrainConfig)
+    seed: int = 42
+
+    _repeat: int = 2
     _logging_level: str = "INFO"  # DEBUG
+    _device: str = "cuda"  # cpu
 
 
 # register the config groups
@@ -55,7 +94,7 @@ config_store.store(
 
 # loops
 config_store.store(
-    group="loop",
+    group="training.loop",
     name=GNNLoopConfig().name,
     node=GNNLoopConfig,
 )

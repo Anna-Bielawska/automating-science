@@ -25,7 +25,7 @@ def _virtual_screen_TDC_worker(oracle_name, compounds_subset, idx):
 
 
 def virtual_screen_TDC(
-    compounds: List[RdkitCanonicalSmiles], oracle_name: str = "DRD2", n_jobs: int = 1
+    compounds: List[RdkitCanonicalSmiles], oracle_name: str = "GSK3β", n_jobs: int = 1
 ) -> List[float]:
     """
     Perform virtual screening in the space for compounds achieving high score according to a selected TDC oracle.
@@ -42,7 +42,7 @@ def virtual_screen_TDC(
 
 
 def run_virtual_screening(
-    compounds: List[RdkitCanonicalSmiles], experiment: Literal["DRD2"] = "DRD2"
+    compounds: List[RdkitCanonicalSmiles], experiment: Literal["GSK3β"] = "GSK3β"
 ) -> Tuple[Dict, List]:
     """Runs virtual screening for a list of spaces."""
     if experiment == "GSK3β":  # choice for workshop
