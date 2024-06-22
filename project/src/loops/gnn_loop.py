@@ -189,9 +189,9 @@ class GNNLoop(BaseLoop):
         self.train_metrics.append(train_metrics)
 
         # Generate candidates
-        logging.info(f"Generating {n_candidates} new candidates.")
+        logger.info(f"Generating {n_candidates * self.loop_params.compounds_multiplier} new candidates.")
         candidates = self.base_loop.propose_candidates(
-            n_candidates * self.training_cfg.compounds_multiplier
+            n_candidates * self.loop_params.compounds_multiplier
         )
 
         # Remove duplicates based on SMILES strings
