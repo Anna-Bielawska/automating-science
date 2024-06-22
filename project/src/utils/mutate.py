@@ -78,11 +78,10 @@ def mutate_selfie(selfie, max_molecules_len, write_fail_cases=False):
     valid = False
     fail_counter = 0
     chars_selfie = get_selfie_chars(selfie)
+    alphabet = sorted(list(selfies.get_semantic_robust_alphabet()))  # 34 SELFIE characters
 
     while not valid:
         fail_counter += 1
-
-        alphabet = list(selfies.get_semantic_robust_alphabet())  # 34 SELFIE characters
 
         choice_ls = [1, 2]  # 1=Insert; 2=Replace; 3=Delete
         random_choice = np.random.choice(choice_ls, 1)[0]

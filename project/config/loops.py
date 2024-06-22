@@ -20,6 +20,14 @@ class BaseLoopConfig:
 
 
 @dataclass
+class MutateLoopParams(BaseLoopParams):
+    """Parameters for the Mutate loop."""
+
+    n_warmup_iterations: int = 3
+    mutate_top_k: int = 10
+
+
+@dataclass
 class GNNLoopParams(BaseLoopParams):
     """Parameters for the GNN loop."""
 
