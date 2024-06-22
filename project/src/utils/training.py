@@ -1,14 +1,15 @@
 import logging
-from typing import Callable, Mapping
+import random
+from typing import Callable
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 import torch_geometric as pyg
-from src.utils.molecules import LeadCompound, from_lead_compound
 from sklearn.model_selection import train_test_split
-import random
-import numpy as np
+from src.utils.molecules import LeadCompound, from_lead_compound
+from torch.utils.data import DataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -45,16 +46,14 @@ def get_data_loaders(
         tuple[DataLoader, DataLoader]: Train and validation data loaders.
     """
     pyg_data = [from_lead_compound(compound, dataset_path) for compound in compounds]
-    X_train, X_valid = train_test_split(
-        pyg_data, test_size=split_ratio
-    )
+    X_train, X_valid = train_test_split(pyg_data, test_size=split_ratio)
 
     train_dl = pyg.loader.DataLoader(
-        X_train, batch_size=batch_size, shuffle=True,
+        X_train,
+        batch_size=batch_size,
+        shuffle=True,
     )
-    valid_dl = pyg.loader.DataLoader(
-        X_valid, batch_size=batch_size, shuffle=False
-    )
+    valid_dl = pyg.loader.DataLoader(X_valid, batch_size=batch_size, shuffle=False)
 
     return train_dl, valid_dl
 

@@ -186,6 +186,9 @@ def train_loop(
     with open(hydra_output_dir / f"repeat_{repeat}/{loop_name}_metrics.json", "w") as f:
         json.dump(loop_run_metrics, f)
 
+    if train_cfg.save_model:
+        torch.save(model.state_dict(), hydra_output_dir / f"repeat_{repeat}/model.pth")
+
 
 def start_experiment_loop(cfg: MainConfig, hydra_output_dir: Path) -> None:
     """Starts the main experiment loop.
