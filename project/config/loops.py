@@ -32,7 +32,7 @@ class GNNLoopParams(BaseLoopParams):
     """Parameters for the GNN loop."""
 
     n_warmup_iterations: int = 3
-    compounds_multiplier: int = 10
+    compounds_multiplier: int = 3
 
 
 @dataclass

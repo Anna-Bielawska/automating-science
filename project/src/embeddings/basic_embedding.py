@@ -1,27 +1,62 @@
+from typing import Any
+
 import numpy as np
 import torch
-from config.embeddings.basic_embedding import BaseEmbeddingConfig
+from config.embeddings import BasicEmbeddingConfig, BasicEmbeddingParams
 from rdkit import Chem
 from src.embeddings.base_embedding import BaseEmbedding
 from src.embeddings.const import EDGE_MAPPING
+from src.embeddings.embedding_registry import register_embedding
+from src.utils.molecules import LeadCompound
 from torch_geometric.data import Data
-from utils.molecules import LeadCompound
 
 
+@register_embedding(BasicEmbeddingConfig().name)
 class BasicEmbedding(BaseEmbedding):
-    """Converts a LeadCompound to a :class:`torch_geometric.data.Data` instance."""
+    """
+    Class for basic embedding of lead compounds.
 
-    def __init__(self, config: BaseEmbeddingConfig):
-        super().__init__(config)
+    Args:
+        params (BasicEmbeddingParams): Parameters for the basic embedding.
+    """
+
+    def __init__(self, params: BasicEmbeddingParams):
+        super().__init__(params)
+        self.params: BasicEmbeddingParams
 
     @staticmethod
-    def one_of_k_encoding_unk(x, allowable_set: set):
+    def one_of_k_encoding_unk(x: Any, allowable_set: set[Any]):
+        """
+        Encode a value using one-of-k encoding with an unknown value.
+
+        Args:
+            x: The value to encode.
+            allowable_set (set): The set of allowable values.
+
+        Returns:
+            list: The encoded value.
+
+        """
         if x not in allowable_set:
             x = allowable_set[-1]
         return list(map(lambda s: x == s, allowable_set))
 
     @staticmethod
-    def one_of_k_encoding(x, allowable_set: set):
+    def one_of_k_encoding(x: Any, allowable_set: set[Any]):
+        """
+        Encode a value using one-of-k encoding.
+
+        Args:
+            x: The value to encode.
+            allowable_set (set): The set of allowable values.
+
+        Returns:
+            list: The encoded value.
+
+        Raises:
+            ValueError: If the input value is not in the allowable set.
+
+        """
         if x not in allowable_set:
             raise ValueError(
                 "input {0} not in allowable set{1}:".format(x, allowable_set)
@@ -29,6 +64,16 @@ class BasicEmbedding(BaseEmbedding):
         return list(map(lambda s: x == s, allowable_set))
 
     def from_lead_compounds(self, lead_compounds: LeadCompound):
+        """
+        Generate the embedding for a lead compound.
+
+        Args:
+            lead_compounds (LeadCompound): The lead compound.
+
+        Returns:
+            Data: The embedding data.
+
+        """
         smiles = lead_compounds.smiles
         mol = Chem.MolFromSmiles(smiles)
         y = lead_compounds.activity
@@ -38,9 +83,9 @@ class BasicEmbedding(BaseEmbedding):
 
         if mol is None:
             mol = Chem.MolFromSmiles("")
-        if self.config.with_hydrogen:
+        if self.params.with_hydrogen:
             mol = Chem.AddHs(mol)
-        if self.config.kekulize:
+        if self.params.kekulize:
             Chem.Kekulize(mol)
 
         X = []

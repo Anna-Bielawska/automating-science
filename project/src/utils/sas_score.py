@@ -16,6 +16,7 @@
 # peter ertl & greg landrum, september 2013
 #
 
+import gzip
 import math
 import os.path as op
 import pickle
@@ -26,9 +27,13 @@ from rdkit.Chem import rdMolDescriptors
 _fscores = None
 
 
-def readFragmentScores(name="fpscores"):
-    import gzip
+def readFragmentScores(name: str="fpscores") -> None:
+    """
+    Read fragment scores from a file.
 
+    Args:
+        name (str, optional): The name of the file containing the fragment scores.
+    """
     global _fscores
     # generate the full path filename:
     if name == "fpscores":
@@ -41,13 +46,32 @@ def readFragmentScores(name="fpscores"):
     _fscores = outDict
 
 
-def numBridgeheadsAndSpiro(mol, ri=None):
+def numBridgeheadsAndSpiro(mol: object, ri: object=None) -> tuple:
+    """
+    Calculates the number of bridgehead atoms and spiro atoms in a molecule.
+
+    Parameters:
+        mol (RDKit Mol): The molecule for which to calculate the number of bridgehead and spiro atoms.
+        ri (RDKit RWMol): The ring information for the molecule. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing the number of bridgehead atoms and the number of spiro atoms.
+    """
     nSpiro = rdMolDescriptors.CalcNumSpiroAtoms(mol)
     nBridgehead = rdMolDescriptors.CalcNumBridgeheadAtoms(mol)
     return nBridgehead, nSpiro
 
 
-def calculateScore(m):
+def calculateScore(m: object) -> float:
+    """
+    Calculate the synthetic accessibility (SA) score for a given molecule.
+
+    Parameters:
+        m (RDKit Mol): The molecule for which to calculate the SA score.
+
+    Returns:
+        float: The SA score of the molecule.
+    """
     if _fscores is None:
         readFragmentScores()
 
@@ -119,7 +143,16 @@ def calculateScore(m):
     return sascore
 
 
-def processMols(mols):
+def processMols(mols: list) -> None:
+    """
+    Process a list of molecules and print their SMILES, name, and SA score.
+
+    Args:
+        mols (list): A list of RDKit molecule objects.
+
+    Returns:
+        None
+    """
     print("smiles\tName\tsa_score")
     for i, m in enumerate(mols):
         if m is None:

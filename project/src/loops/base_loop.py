@@ -1,17 +1,17 @@
-from abc import abstractmethod
-import json
-from pathlib import Path
-from typing import Optional, Union
-import rdkit
 import copy
 import glob
-from more_itertools import zip_equal
+import json
+import logging
+from abc import abstractmethod
+from pathlib import Path
+from typing import Optional, Union
 
+import rdkit
+from config.loops import BaseLoopParams
+from config.main_config import TrainConfig
+from more_itertools import zip_equal
 from src.utils.molecules import LeadCompound, compute_ertl_score
 from src.utils.screening import run_virtual_screening
-import logging
-from config.main_config import TrainConfig
-from config.loops import BaseLoopParams
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,13 @@ class BaseLoop:
         training_cfg: TrainConfig = None,
     ):
         """
-        :param base_dir: directory where the results will be stored
-        :param user_token: token used for the user (each user has up to some limit of calls for each target)
-        :param target: target for the virtual screening (DRD2, DRD2_server, ...)
+        Initialize the BaseLoop object.
+
+        Args:
+            loop_params (BaseLoopParams): Parameters for the active learning loop.
+            base_dir (Union[str, Path]): Base directory to store the results.
+            target (str, optional): Target for the active learning loop. Defaults to "GSK3β".
+            training_cfg (TrainConfig, optional): Training configuration. Defaults to None.
         """
         self.loop_params = loop_params
         self.base_dir = base_dir if isinstance(base_dir, Path) else Path(base_dir)
@@ -44,21 +48,52 @@ class BaseLoop:
 
     @abstractmethod
     def propose_candidates(self, n_candidates: int) -> list[LeadCompound]:
-        """A stateful function that proposes candidates based on prior experience"""
+        """
+        A stateful function that proposes candidates based on prior experience.
+
+        Args:
+            n_candidates (int): Number of candidates to propose.
+
+        Returns:
+            list[LeadCompound]: List of proposed lead compounds.
+        """
         pass
 
     @classmethod
     def evaluate_synthesizability(cls, candidates: list[LeadCompound]) -> list[float]:
+        """
+        Evaluate the synthesizability of the given candidates.
+
+        Args:
+            candidates (list[LeadCompound]): List of lead compounds to evaluate.
+
+        Returns:
+            list[float]: List of synthesizability scores for the candidates.
+        """
         cls._validate_smiles([c.smiles for c in candidates])
         return [compute_ertl_score(c.smiles) for c in candidates]
 
     @property
-    def n_iterations(self):
+    def n_iterations(self) -> int:
+        """
+        Get the number of iterations.
+
+        Returns:
+            int: Number of iterations.
+        """
         return len(list(glob.glob(str(self.base_dir / "*.json"))))
 
     def load(self, iteration_id: Optional[int] = None) -> list[LeadCompound]:
-        """Load the results of previous iterations from the base_dir.
-        If iteration_id is None, then load all results."""
+        """
+        Load the results of previous iterations from the base_dir.
+        If iteration_id is None, then load all results.
+
+        Args:
+            iteration_id (Optional[int], optional): Iteration ID to load results from. Defaults to None.
+
+        Returns:
+            list[LeadCompound]: List of lead compounds loaded from the results.
+        """
         all_res = list(glob.glob(str(self.base_dir / "*.json")))
         # sort by index (filenames are like 0.json, 1.json, 2.json, ...)
         all_res.sort(key=lambda x: int(Path(x).stem))
@@ -68,12 +103,21 @@ class BaseLoop:
             c = sum([json.load(open(f, "r")) for f in all_res], [])
         return list(map(LeadCompound.from_dict, c))
 
-    def test_in_lab_and_save(self, candidates: list[LeadCompound]):
-        """Test candidates in the lab and saves the outcome locally.
+    def test_in_lab_and_save(
+        self, candidates: list[LeadCompound]
+    ) -> list[LeadCompound]:
+        """
+        Test candidates in the lab and save the outcome locally.
 
-         The compounds are first checked for synthesizability using synthesize() function.
+        The compounds are first checked for synthesizability using synthesize() function.
+        The results are saved in base_dir/[date]_lab_results.json.
 
-        The results are saved in base_dir/[date]_lab_results.json."""
+        Args:
+            candidates (list[LeadCompound]): List of lead compounds to test.
+
+        Returns:
+            list[LeadCompound]: List of lead compounds with updated activity and synthesis scores.
+        """
         candidates = copy.deepcopy(candidates)
 
         smi = [c.smiles for c in candidates]
@@ -104,7 +148,7 @@ class BaseLoop:
         save_filename = "{}.json".format(self.n_iterations)
         logger.info(f"Saving results to {self.base_dir / save_filename}.")
         json.dump(
-            [c.to_dict() for c in candidates],
+            [c.to_dict() for c in sorted(candidates, key=lambda x: x.smiles)],
             open(self.base_dir / save_filename, "w"),
             indent=2,
         )
@@ -112,8 +156,16 @@ class BaseLoop:
         return candidates
 
     @classmethod
-    def _validate_smiles(cls, candidates: list[str]):
-        """Helper function to check if the SMILES are valid"""
+    def _validate_smiles(cls, candidates: list[str]) -> None:
+        """
+        Helper function to check if the SMILES are valid.
+
+        Args:
+            candidates (list[str]): List of SMILES strings.
+
+        Raises:
+            ValueError: If the SMILES are invalid.
+        """
         for s in candidates:
             if not isinstance(s, str):
                 raise ValueError("SMILES must be a string.")

@@ -7,18 +7,19 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch_geometric as pyg
-from sklearn.model_selection import train_test_split
-from src.utils.molecules import LeadCompound, from_lead_compound
+from src.embeddings.base_embedding import BaseEmbedding
+from src.utils.molecules import LeadCompound
 from torch.utils.data import DataLoader
 
 logger = logging.getLogger(__name__)
 
 
 def set_seed(seed: int) -> None:
-    """Set random seed for reproducibility.
+    """
+    Set the random seed for reproducibility.
 
     Args:
-        seed (int): Random seed.
+        seed (int): The seed value to set.
     """
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -30,29 +31,30 @@ def set_seed(seed: int) -> None:
 
 def get_data_loaders(
     compounds: list[LeadCompound],
+    embedding: BaseEmbedding,
     split_ratio: float,
     batch_size: int,
-    dataset_path: str,
 ) -> tuple[DataLoader, DataLoader]:
     """Get train and validation data loaders.
 
     Args:
         compounds (list[LeadCompound]): List of lead compounds.
+        embedding (BaseEmbedding): Embedding instance.
         split_ratio (float): Train/Validation split ratio.
         batch_size (int): Batch size.
-        dataset_path (str): Path to the dataset.
 
     Returns:
         tuple[DataLoader, DataLoader]: Train and validation data loaders.
     """
-    pyg_data = [from_lead_compound(compound, dataset_path) for compound in compounds]
-    X_train, X_valid = train_test_split(pyg_data, test_size=split_ratio)
-
-    train_dl = pyg.loader.DataLoader(
-        X_train,
-        batch_size=batch_size,
-        shuffle=True,
+    pyg_data = [embedding.from_lead_compounds(compound) for compound in compounds]
+ 
+    random.shuffle(pyg_data)
+    X_train, X_valid = (
+        pyg_data[int(len(pyg_data) * split_ratio) :],
+        pyg_data[: int(len(pyg_data) * split_ratio)],
     )
+
+    train_dl = pyg.loader.DataLoader(X_train, batch_size=batch_size, shuffle=True)
     valid_dl = pyg.loader.DataLoader(X_valid, batch_size=batch_size, shuffle=False)
 
     return train_dl, valid_dl
@@ -80,8 +82,6 @@ def train_epoch(
 
     module.train()
     train_loss = 0
-    true_labels = []
-    pred_labels = []
 
     total_samples = len(train_dl.dataset)  # type: ignore
     processed_samples = 0
@@ -97,9 +97,6 @@ def train_epoch(
         # Compute prediction error
         pred = module(data).squeeze()
         loss = loss_function(pred, labels)
-
-        true_labels.extend(labels.cpu().numpy())
-        pred_labels.extend(pred.cpu().detach().numpy())
 
         # Backpropagation
         loss.backward()
@@ -165,7 +162,7 @@ class EarlyStopper:
     Patience is the number of epochs to wait for improvement before stopping.
     """
 
-    def __init__(self, enabled, patience: int, min_delta: float):
+    def __init__(self, enabled: bool, patience: int, min_delta: float):
         """Initialize EarlyStopper.
 
         Args:
@@ -201,17 +198,3 @@ class EarlyStopper:
         """Reset the early stopper"""
         self.counter = 0
         self.best_metric_value = float("inf")
-
-
-class MAELoss(torch.nn.Module):
-    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        """Maximum Absolute Error Loss
-
-        Args:
-            pred (torch.Tensor): Prediction tensor shape (batch_size)
-            target (torch.Tensor): Label tensor shape (batch_size)
-
-        Returns:
-            torch.Tensor: Loss tensor shape (1)
-        """
-        return torch.mean(torch.abs(pred - target))

@@ -2,17 +2,32 @@
 Implementation of the simplest virtual screening experiments.
 """
 
-from typing import List, Dict, Literal, Tuple
+import logging
+from typing import Dict, List, Tuple
 
 import numpy as np
-from tdc import Oracle
 from src.utils.dataset import RdkitCanonicalSmiles
-import logging
+from tdc import Oracle
 
 logger = logging.getLogger(__name__)
 
 
-def _virtual_screen_TDC_worker(oracle_name, compounds_subset, idx):
+def _virtual_screen_TDC_worker(oracle_name: str, compounds_subset: list, idx: int):
+    """
+    Perform virtual screening using the specified oracle on a subset of compounds.
+
+    Args:
+        oracle_name (str): The name of the oracle to use for virtual screening.
+        compounds_subset (list): A list of compounds to screen.
+        idx (int): The index of the worker.
+
+    Returns:
+        list: The screening results for the compounds_subset.
+
+    Raises:
+        Exception: If an error occurs during virtual screening.
+
+    """
     try:
         logger.debug(f"Worker {idx} started.")
         oracle = Oracle(name=oracle_name)
@@ -29,6 +44,11 @@ def virtual_screen_TDC(
 ) -> List[float]:
     """
     Perform virtual screening in the space for compounds achieving high score according to a selected TDC oracle.
+
+    Args:
+        compounds (list): A list of compounds to screen.
+        oracle_name (str): The name of the oracle to use for virtual screening.
+        n_jobs (int): The number of parallel jobs to run.
     """
 
     if n_jobs != 1:
@@ -42,9 +62,17 @@ def virtual_screen_TDC(
 
 
 def run_virtual_screening(
-    compounds: List[RdkitCanonicalSmiles], experiment: Literal["GSK3β"] = "GSK3β"
+    compounds: List[RdkitCanonicalSmiles], experiment: str = "GSK3β"
 ) -> Tuple[Dict, List]:
-    """Runs virtual screening for a list of spaces."""
+    """Runs virtual screening for a list of spaces.
+    
+    Args:
+        compounds (list): A list of compounds to screen.
+        experiment (str): The name of the experiment to run.
+        
+    Returns:
+        dict: A dictionary containing the top 1, 10, and 100 scores.
+        """
     if experiment == "GSK3β":  # choice for workshop
         fnc = virtual_screen_TDC
     else:

@@ -10,13 +10,12 @@ To start the benchmark, you need to provide the necessary configuration paramete
 The benchmark is started by running the `main.py` script with the desired configuration parameters.
 
 Currently, the required configuration parameters are:
-- `num_epochs` - number of epochs to run the benchmark for
 - `model` - the model to use for the benchmark
 - `loop` - the loop to use for the benchmark
 
 Example command to run the benchmark:
 ```bash
-python main.py num_epochs=5 model=GraphNeuralNetwork loop=gnn_loop
+python main.py model=GraphNeuralNetwork loop=gnn_loop
 ```
 
 ### Configuration
@@ -27,6 +26,9 @@ The configuration is implemented using the [Hydra](https://hydra.cc/) library th
 ### Custom model and loop implementations
 To add a custom model or loop implementation. 
 
-- Create a new file in the `models` or `loops` directory with the implementatin of the model or loop.
-- Register the model or loop with the `@register_model` or `@register_loop` decorator.
+- Create a new file in the `models`, `loops` or `embeddings` directory with the implementatin of the model or loop.
 - Create a new configuration file in the `config` directory with the new model or loop, following the existing configuration files as an example.
+- Register the model or loop with the `@register_model`, `@register_loop` oraz `@register_embedding` decorator.
+
+### Results analysis
+The benchmark results are saved in the `outputs` directory. For analysis of the results, you can use the `results_analysis.ipynb` Jupyter notebook.
