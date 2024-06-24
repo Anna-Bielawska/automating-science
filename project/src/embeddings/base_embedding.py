@@ -1,10 +1,12 @@
-from config.embeddings.basic_embedding import BaseEmbeddingConfig
-from utils.molecules import LeadCompound
+from config.embeddings import BaseEmbeddingParams
+from src.utils.molecules import LeadCompound
 
 
 class BaseEmbedding:
-    def __init__(self, config: BaseEmbeddingConfig):
-        self.config = config
+    """Base class for embeddings."""
+    def __init__(self, params: BaseEmbeddingParams):
+        self.params = params
 
     def from_lead_compounds(self, lead_compounds: LeadCompound):
+        """Converts a LeadCompound to a :class:`torch_geometric.data.Data` instance."""
         raise NotImplementedError

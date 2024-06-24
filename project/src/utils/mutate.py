@@ -1,38 +1,41 @@
-import selfies
+import logging
+
 import numpy as np
+import selfies
+from rdkit.Chem import AllChem
 from rdkit.Chem import MolFromSmiles as smi2mol
 from rdkit.Chem import MolToSmiles as mol2smi
-from rdkit.Chem import AllChem
 from selfies import decoder
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-def get_ECFP4(mol):
-    """Return rdkit ECFP4 fingerprint object for mol
+def get_ECFP4(mol: object) -> object:
+    """
+    Return rdkit ECFP4 fingerprint object for mol
 
-    Parameters:
-    mol (rdkit.Chem.rdchem.Mol) : RdKit mol object
+    Args:
+        mol (rdkit.Chem.rdchem.Mol): RdKit mol object
 
     Returns:
-    rdkit ECFP4 fingerprint object for mol
+        rdkit.Chem.rdchem._DataStructs.ExplicitBitVect: ECFP4 fingerprint object
     """
     return AllChem.GetMorganFingerprint(mol, 2)
 
 
-def get_selfie_chars(selfie):
-    """Obtain a list of all selfie characters in string selfie
+def get_selfie_chars(selfie: str) -> list[str]:
+    """
+    Obtain a list of all selfie characters in string selfie
 
-    Parameters:
-    selfie (string) : A selfie string - representing a molecule
+    Args:
+        selfie (str) : A selfie string - representing a molecule
+
+    Returns:
+        chars_selfie: list of selfie characters present in molecule selfie
 
     Example:
     >>> get_selfie_chars('[C][=C][C][=C][C][=C][Ring1][Branch1_1]')
     ['[C]', '[=C]', '[C]', '[=C]', '[C]', '[=C]', '[Ring1]', '[Branch1_1]']
-
-    Returns:
-    chars_selfie: list of selfie characters present in molecule selfie
     """
     chars_selfie = []  # A list of all SELFIE sybols from string selfie
     while selfie != "":
@@ -41,16 +44,16 @@ def get_selfie_chars(selfie):
     return chars_selfie
 
 
-def sanitize_smiles(smi):
+def sanitize_smiles(smi: str) -> tuple:
     """Return a canonical smile representation of smi
 
-    Parameters:
-    smi (string) : smile string to be canonicalized
+    Args:
+        smi (str): A SMILES string
 
     Returns:
-    mol (rdkit.Chem.rdchem.Mol) : RdKit mol object                          (None if invalid smile string smi)
-    smi_canon (string)          : Canonicalized smile representation of smi (None if invalid smile string smi)
-    conversion_successful (bool): True/False to indicate if conversion was  successful
+        mol (rdkit.Chem.rdchem.Mol): RdKit mol object
+        smi_canon (str): Canonical SMILES representation of mol
+        True (bool): True if SMILES is valid, False otherwise
     """
 
     mol = smi2mol(smi, sanitize=True)
@@ -58,7 +61,7 @@ def sanitize_smiles(smi):
     return (mol, smi_canon, True)
 
 
-def mutate_selfie(selfie, max_molecules_len, write_fail_cases=False):
+def mutate_selfie(selfie: str, max_molecules_len: int, write_fail_cases: bool = False):
     """Return a mutated selfie string (only one mutation on slefie is performed)
 
     Mutations are done until a valid molecule is obtained
@@ -66,19 +69,20 @@ def mutate_selfie(selfie, max_molecules_len, write_fail_cases=False):
         1. Add a random SELFIE character in the string
         2. Replace a random SELFIE character with another
 
-    Parameters:
-    selfie            (string)  : SELFIE string to be mutated
-    max_molecules_len (int)     : Mutations of SELFIE string are allowed up to this length
-    write_fail_cases  (bool)    : If true, failed mutations are recorded in "selfie_failure_cases.txt"
+    Args:
+        selfie (str): A SELFIE string
+        max_molecules_len (int): Maximum length of molecules
+        write_fail_cases (bool): Write failed cases to a file
 
     Returns:
-    selfie_mutated    (string)  : Mutated SELFIE string
-    smiles_canon      (string)  : canonical smile of mutated SELFIE string
+        tuple: A tuple of mutated selfie and canonical SMILES representation of the molecule
     """
     valid = False
     fail_counter = 0
     chars_selfie = get_selfie_chars(selfie)
-    alphabet = sorted(list(selfies.get_semantic_robust_alphabet()))  # 34 SELFIE characters
+    alphabet = sorted(
+        list(selfies.get_semantic_robust_alphabet())
+    )  # 34 SELFIE characters
 
     while not valid:
         fail_counter += 1

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from omegaconf import MISSING
+from typing import Optional
 
 
 @dataclass
@@ -32,8 +33,11 @@ class GraphNeuralNetworkParams(BaseModelParams):
     """
 
     input_dim: int = 34  # Input size for ZINC
+    output_dim: int = 1
     dimensions: list[int] = field(default_factory=lambda: [128, 128])
     dropout_rates: list[float] = field(default_factory=lambda: [0.1, 0.1])
+    global_pooling: Optional[str] = "mean"
+    concat_global_pooling: Optional[str] = None
 
 
 @dataclass
@@ -42,3 +46,18 @@ class GraphNeuralNetworkConfig(BaseModelConfig):
 
     name: str = "GraphNeuralNetwork"
     params: GraphNeuralNetworkParams = GraphNeuralNetworkParams()
+
+
+@dataclass
+class GraphAttentionNetworkParams(BaseModelParams):
+    in_channels: int = 34
+    out_channels: int = 1
+    hidden_channels: int = 64
+    heads: int = 8
+    global_pooling: Optional[str] = "mean"
+
+
+@dataclass
+class GraphAttentionNetworkConfig(BaseModelConfig):
+    name: str = "GraphAttentionNetwork"
+    params: GraphAttentionNetworkParams = GraphAttentionNetworkParams()

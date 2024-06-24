@@ -1,21 +1,17 @@
 import logging
-
-import numpy as np
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch_geometric as pyg
 from config.loops import GNNLoopConfig, GNNLoopParams
 from config.main_config import TrainConfig
-from src.loops.loop_registry import register_loop
+from src.embeddings.embedding_registry import create_embedding
 from src.loops.base_loop import BaseLoop
-from src.utils.molecules import LeadCompound, from_lead_compound
-from src.utils.training import (
-    get_data_loaders,
-    train_epoch,
-    validate_epoch,
-    EarlyStopper,
-)
+from src.loops.loop_registry import register_loop
+from src.utils.molecules import LeadCompound
+import src.utils
+import src.utils.training
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +19,16 @@ logger = logging.getLogger(__name__)
 @register_loop(GNNLoopConfig().name)
 class GNNLoop(BaseLoop):
     """
-    Your final implementation of the experimental loop.
+    Loop that uses a GNN model to propose new candidates.
 
-    The algorithm you implement in the `propose_candidates` method will be repeated
-    several times to iteratively improve your candidates.
-
-    The molecules will be sent to the official lab endpoint with a LIMITED NUMBER OF REQUESTS,
-    so use this code wisely and care for the synthesizability of your compounds!
+    Args:
+        loop_params (GNNLoopParams): Loop parameters.
+        train_cfg (TrainConfig): Training configuration.
+        base_dir (Path): Base directory.
+        base_loop (BaseLoop): Base loop.
+        model (torch.nn.Module): GNN model.
+        device (torch.device): Device to run the model on.
+        target (str): Target to optimize.
     """
 
     def __init__(
@@ -39,7 +38,7 @@ class GNNLoop(BaseLoop):
         base_dir: Path,
         base_loop: BaseLoop,
         model: torch.nn.Module,
-        device: torch.device = torch.device("cuda"),
+        device: torch.device,
         target: str = "GSK3β",
     ):
         super().__init__(loop_params, base_dir, target, train_cfg)
@@ -53,16 +52,28 @@ class GNNLoop(BaseLoop):
             self.model.parameters(), **self.training_cfg.optimizer
         )
         self.loss_function = torch.nn.MSELoss()
-        self.early_stopping = EarlyStopper(**self.training_cfg.early_stopping)
+        self.early_stopping = src.utils.training.EarlyStopper(**self.training_cfg.early_stopping)
+        self.embedding = create_embedding(self.training_cfg.embedding)
 
     def _train_model(self, candidates: list[LeadCompound], epochs: int = 10):
+        """
+        Trains the model using the provided list of candidates for a specified number of epochs.
+
+        Args:
+            candidates (list[LeadCompound]): A list of LeadCompound objects representing the candidates.
+            epochs (int, optional): The number of training epochs. Defaults to 10.
+
+        Returns:
+            dict: A dictionary containing the training metrics including train_loss, valid_loss, activity mean and std,
+                  top 10 activity mean and std, train size, and valid size.
+        """
         candidates = [c for c in candidates if c.activity != -1.0]
 
-        train_dl, valid_dl = get_data_loaders(
+        train_dl, valid_dl = src.utils.training.get_data_loaders(
             candidates,
+            self.embedding,
             self.training_cfg.split_ratio,
             self.training_cfg.batch_size,
-            self.training_cfg.dataset_path,
         )
 
         train_activity = [c.y for c in train_dl.dataset]
@@ -101,10 +112,10 @@ class GNNLoop(BaseLoop):
         best_loss = float("inf")
 
         for epoch in range(epochs):
-            train_loss = train_epoch(
+            train_loss = src.utils.training.train_epoch(
                 self.model, train_dl, self.optimizer, self.loss_function, self.device
             )
-            valid_loss = validate_epoch(
+            valid_loss = src.utils.training.validate_epoch(
                 self.model, valid_dl, self.loss_function, self.device
             )
 
@@ -129,9 +140,17 @@ class GNNLoop(BaseLoop):
         return metrics
 
     def _predict(self, candidates: list[LeadCompound]) -> list[float]:
+        """
+        Predicts the output for a list of candidate lead compounds.
+
+        Args:
+            candidates (list[LeadCompound]): A list of LeadCompound objects representing the candidate compounds.
+
+        Returns:
+            list[float]: A list of predicted output values for the candidate compounds.
+        """
         pyg_data = [
-            from_lead_compound(compound, self.training_cfg.dataset_path)
-            for compound in candidates
+            self.embedding.from_lead_compounds(compound) for compound in candidates
         ]
 
         test_dl = pyg.loader.DataLoader(
@@ -155,9 +174,15 @@ class GNNLoop(BaseLoop):
     def _select_top_N(
         self, candidates: list[LeadCompound], n_select: int
     ) -> list[LeadCompound]:
-        """Ranks candidates by their predicted activity."""
-        # candidates = [c for c in candidates if c.activity != -1]
+        """Selects the top N compounds based on their predicted activity.
 
+        Args:
+            candidates (list[LeadCompound]): The list of candidate compounds.
+            n_select (int): The number of compounds to select.
+
+        Returns:
+            list[LeadCompound]: The top N compounds based on their predicted activity.
+        """
         if len(candidates) == 0:
             raise ValueError(
                 "No previous results to train on (excluded activity = -1). Perhaps your "
@@ -176,6 +201,15 @@ class GNNLoop(BaseLoop):
         return sorted_compounds[:n_select]
 
     def propose_candidates(self, n_candidates: int) -> list[LeadCompound]:
+        """
+        Proposes a list of candidate compounds for the next iteration of the loop.
+
+        Args:
+            n_candidates (int): The number of candidate compounds to propose.
+
+        Returns:
+            list[LeadCompound]: A list of proposed candidate compounds.
+        """
         if self.n_iterations < self.loop_params.n_warmup_iterations:
             return self.base_loop.propose_candidates(n_candidates)
 
@@ -189,7 +223,9 @@ class GNNLoop(BaseLoop):
         self.train_metrics.append(train_metrics)
 
         # Generate candidates
-        logger.info(f"Generating {n_candidates * self.loop_params.compounds_multiplier} new candidates.")
+        logger.debug(
+            f"Generating {n_candidates * self.loop_params.compounds_multiplier} new candidates."
+        )
         candidates = self.base_loop.propose_candidates(
             n_candidates * self.loop_params.compounds_multiplier
         )
@@ -203,7 +239,8 @@ class GNNLoop(BaseLoop):
                 candidates_unique.add(c)
                 smiles_seen.add(c)
 
-        candidates = list(candidates_unique)
+        candidates = sorted(list(candidates_unique), key=lambda x: x.smiles)
+
         # Select the top N candidates from previous results and newly sampled compounds, based on the model's predictions
         top_candidates = self._select_top_N(candidates, n_candidates)
 
