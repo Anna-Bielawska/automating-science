@@ -1,7 +1,0 @@
-dropout_rate:
-- 0.2
-- 0.1
-input_dim: 34
-model_dim:
-- 128
-- 128
