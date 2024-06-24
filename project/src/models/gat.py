@@ -19,17 +19,27 @@ class GAT(torch.nn.Module):
     def __init__(self, params: GraphAttentionNetworkParams):
         super().__init__()
         self.params = params
+        self.global_pooling = get_global_pooling(params.global_pooling)
+        self.concat_global_pooling = get_global_pooling(params.concat_global_pooling)
         self.conv1 = GATConv(
-            params.in_channels, params.hidden_channels, params.heads, dropout=0.6
+            params.in_channels,
+            params.hidden_channels,
+            params.heads,
+            dropout=0.3
         )
         self.conv2 = GATConv(
             params.hidden_channels * params.heads,
-            params.out_channels,
+            params.hidden_channels,
             heads=1,
             concat=False,
-            dropout=0.6,
+            dropout=0.3,
         )
-        self.global_pooling = get_global_pooling(params.global_pooling)
+        if self.concat_global_pooling:
+            self.fc = MLP([2*params.hidden_channels, params.out_channels],
+                           norm="batch_norm", dropout=0.3)
+        else:
+            self.fc = MLP([params.hidden_channels, params.out_channels],
+                           norm="batch_norm", dropout=0.3)
 
     def forward(self, data: Batch) -> torch.Tensor:
         """
@@ -44,14 +54,15 @@ class GAT(torch.nn.Module):
             data.edge_index,
             data.edge_attr,
         )
-        x, edge_index, edge_attr = (
-            x,
-            edge_index,
-            edge_attr,
-        )
-        x = F.dropout(x, p=0.6, training=self.training)
+        x = F.dropout(x, p=0.3, training=self.training)
         x = F.elu(self.conv1(x, edge_index, edge_attr))
-        x = F.dropout(x, p=0.6, training=self.training)
+        x = F.dropout(x, p=0.3, training=self.training)
         x = self.conv2(x, edge_index, edge_attr)
+        # Apply global average pooling
+        _x = x
         x = self.global_pooling(x, data.batch)
-        return x
+        # Concatenate global max pooling
+        if self.concat_global_pooling:
+            _x = self.concat_global_pooling(_x, data.batch)
+            x = torch.cat([x, _x], dim=-1)
+        return self.fc(x)
