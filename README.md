@@ -11,11 +11,11 @@ The benchmark is started by running the `main.py` script with the desired config
 
 Currently, the required configuration parameters are:
 - `model` - the model to use for the benchmark
-- `loop` - the loop to use for the benchmark
+- `training.loop` - the loop to use for the benchmark
 
 Example command to run the benchmark:
 ```bash
-python main.py model=GraphNeuralNetwork loop=gnn_loop
+python main.py model=GraphNeuralNetwork training.loop=gnn_loop pretraining.enabled=True _repeat=1
 ```
 
 ### Configuration
