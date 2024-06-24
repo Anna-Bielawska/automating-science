@@ -7,21 +7,20 @@ from typing import List, Dict, Literal, Tuple
 import numpy as np
 from tdc import Oracle
 from src.utils.dataset import RdkitCanonicalSmiles
+import logging
 
-from rich.console import Console
-
-console = Console()
+logger = logging.getLogger(__name__)
 
 
 def _virtual_screen_TDC_worker(oracle_name, compounds_subset, idx):
     try:
-        console.log(f"Worker {idx} started.")
+        logger.debug(f"Worker {idx} started.")
         oracle = Oracle(name=oracle_name)
         results = oracle(compounds_subset)
-        console.log(f"Worker {idx} completed successfully.")
+        logger.debug(f"Worker {idx} completed successfully.")
         return results
     except Exception as e:
-        console.log(f"An error occurred in worker {idx}: {e}")
+        logger.error(f"An error occurred in worker {idx}: {e}")
         return [0] * len(compounds_subset)
 
 

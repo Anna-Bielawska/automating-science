@@ -1,0 +1,24 @@
+name: gnn
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+- python=3.9
+- pip
+- pandas
+- matplotlib
+- numpy=1.26
+- pytorch
+- pytorch-cuda
+- pip:
+  - selfies
+  - more_itertools
+  - rdkit
+  - scikit-learn
+  - dataclasses-json
+  - mols2grid
+  - PyTDC==0.4.1
+  - hydra-core
+  - torch_geometric
