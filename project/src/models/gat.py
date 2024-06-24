@@ -4,7 +4,7 @@ from src.models.model_registry import register_model
 from src.utils.graph import get_global_pooling
 from torch.nn import functional as F
 from torch_geometric.data import Batch
-from torch_geometric.nn import GATConv
+from torch_geometric.nn import GATConv, MLP
 
 # Code based on https://github.com/pyg-team/pytorch_geometric/blob/master/examples/gat.py
 

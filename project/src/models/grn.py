@@ -7,11 +7,11 @@ from torch_geometric.data import Batch
 from torch_geometric.nn import GCN2Conv
 
 
+
 class GCN2Layer(nn.Module):
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
+        hidden_channels: int,
         dropout_rate: float = 0.0,
         use_batchnorm: bool = False,
         alpha: float = 0.5,
@@ -22,8 +22,7 @@ class GCN2Layer(nn.Module):
         Initializes a residual Graph Convolutional Network (GCN) layer.
 
         Args:
-            in_channels (int): Number of input channels.
-            out_channels (int): Number of output channels.
+            hidden_channels (int): Number of hidden channels.
             dropout_rate (float): Dropout rate to be applied.
             use_batch_norm (bool): Whether to use batch normalization.
             alpha (float): The strength of the initial residual connection.
@@ -33,8 +32,7 @@ class GCN2Layer(nn.Module):
         """
         super(GCN2Layer, self).__init__()
         self.conv = GCN2Conv(
-            in_channels,
-            out_channels,
+            hidden_channels,
             alpha=alpha,
             theta=theta,
             shared_weights=True, # will use the same weight matrices for the smoothed representation and the initial residual
@@ -43,7 +41,7 @@ class GCN2Layer(nn.Module):
         )
         self.dropout = nn.Dropout(dropout_rate)
         self.batch_norm = (
-            nn.BatchNorm1d(out_channels) if use_batchnorm else nn.Identity()
+            nn.BatchNorm1d(hidden_channels) if use_batchnorm else nn.Identity()
         )
         self.relu = nn.ReLU(inplace=True)
 
@@ -60,8 +58,8 @@ class GCN2Layer(nn.Module):
         Returns:
             torch.Tensor: Output tensor.
         """
-        h = F.dropout(x, self.dropout, training=self.training)
-        h = conv(h, x_0, edge_index, edge_weight)
+        h = self.dropout(x)
+        h = self.conv(h, x_0, edge_index, edge_weight)
         x = h + x
         x = self.batch_norms(x)
         x = self.relu(x)
@@ -91,12 +89,12 @@ class GraphResidualNetwork(nn.Module):
         self.concat_global_pooling = get_global_pooling(params.concat_global_pooling)
 
         self.layers = nn.ModuleList()
-        self.in_layer = Linear(params.input_dim, params.dimensions[0])
+        self.in_layer = nn.Linear(params.input_dim, params.dimensions[0])
 
         for i in range(len(params.dimensions)):
             in_dim = params.input_dim if i == 0 else params.dimensions[i - 1]
             self.layers.append(
-                GCN2Layer(params.dimensions[i], params.dimensions[i], params.dropout_rates[i], layer=i)
+                GCN2Layer(params.dimensions[i], params.dropout_rates[i], layer=i)
             )
 
         self.out_layer = (
