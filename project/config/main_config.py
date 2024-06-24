@@ -3,7 +3,12 @@ from typing import Any
 
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING
-from config.models import BaseModelConfig, GraphNeuralNetworkConfig, GraphAttentionNetworkConfig
+from config.models import (BaseModelConfig, 
+                           GraphNeuralNetworkConfig,
+                           GraphAttentionNetworkConfig,
+                           GraphIsomorphismNetworkConfig,
+                           EdgeConditionedNetworkConfig,
+                           GraphResidualNetworkConfig)
 from config.loops import GNNLoopConfig, BaseLoopConfig
 from config.embeddings import BaseEmbeddingConfig, BasicEmbeddingConfig
 
@@ -96,6 +101,24 @@ config_store.store(
     group="model",
     name=GraphAttentionNetworkConfig().name,
     node=GraphAttentionNetworkConfig,
+)
+
+config_store.store(
+    group="model",
+    name=GraphIsomorphismNetworkConfig().name,
+    node=GraphIsomorphismNetworkConfig,
+)
+
+config_store.store(
+    group="model",
+    name=EdgeConditionedNetworkConfig().name,
+    node=EdgeConditionedNetworkConfig,
+)
+
+config_store.store(
+    group="model",
+    name=GraphResidualNetworkConfig().name,
+    node=GraphResidualNetworkConfig,
 )
 
 # loops
