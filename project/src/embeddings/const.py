@@ -1,6 +1,5 @@
 from typing import Any, Sequence
 
-
 EDGE_MAPPING: dict[str, Sequence[Any]] = {
     "bond_type": [
         "UNSPECIFIED",

@@ -7,7 +7,6 @@ from torch_geometric.data import Batch
 from torch_geometric.nn import GCN2Conv
 
 
-
 class GCN2Layer(nn.Module):
     def __init__(
         self,

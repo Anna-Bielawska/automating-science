@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import src.utils
+import src.utils.training
 import torch
 import torch_geometric as pyg
 from config.loops import GNNLoopConfig, GNNLoopParams
@@ -10,8 +12,6 @@ from src.embeddings.embedding_registry import create_embedding
 from src.loops.base_loop import BaseLoop
 from src.loops.loop_registry import register_loop
 from src.utils.molecules import LeadCompound
-import src.utils
-import src.utils.training
 
 logger = logging.getLogger(__name__)
 
