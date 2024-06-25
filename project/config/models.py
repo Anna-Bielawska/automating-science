@@ -52,8 +52,9 @@ class GraphNeuralNetworkConfig(BaseModelConfig):
 class GraphAttentionNetworkParams(BaseModelParams):
     in_channels: int = 34
     out_channels: int = 1
-    hidden_channels: int = 64
-    heads: int = 8
+    dimensions: list[int] = field(default_factory=lambda: [64, 64])
+    dropout_rates: list[float] = field(default_factory=lambda: [0.3, 0.3])
+    heads: list[int] = field(default_factory=lambda: [8, 1])  # last attention layer must have 1 head
     global_pooling: Optional[str] = "mean"
     concat_global_pooling: Optional[str] = None
 
@@ -70,9 +71,9 @@ class GraphAttentionNetworkConfig(BaseModelConfig):
 class GraphIsomorphismNetworkParams(BaseModelParams):
     in_channels: int = 34
     out_channels: int = 1
-    num_layers: int = 2
-    hidden_channels: int = 64
     trainable_eps: bool = True
+    dimensions: list[int] = field(default_factory=lambda: [64, 64])
+    dropout_rates: list[float] = field(default_factory=lambda: [0.3, 0.3])
     global_pooling: Optional[str] = "mean"
     concat_global_pooling: Optional[str] = None
 
@@ -89,7 +90,8 @@ class GraphIsomorphismNetworkConfig(BaseModelConfig):
 class EdgeConditionedNetworkParams(BaseModelParams):
     in_channels: int = 34
     out_channels: int = 1
-    hidden_channels: int = 64
+    dimensions: list[int] = field(default_factory=lambda: [64, 64])
+    dropout_rates: list[float] = field(default_factory=lambda: [0.3, 0.3])
     global_pooling: Optional[str] = "mean"
     concat_global_pooling: Optional[str] = None
 
