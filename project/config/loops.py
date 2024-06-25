@@ -26,6 +26,7 @@ class MutateLoopParams(BaseLoopParams):
 
     n_warmup_iterations: int = 3
     mutate_top_k: int = 10
+    n_workers: int = 4
 
 
 @dataclass
