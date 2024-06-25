@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from omegaconf import MISSING
 from typing import Optional
+
+from omegaconf import MISSING
 
 
 @dataclass

@@ -1,10 +1,9 @@
-import hydra
 import logging
 from pathlib import Path
 
-from omegaconf import OmegaConf
-
+import hydra
 from config.main_config import MainConfig
+from omegaconf import OmegaConf
 from src.experiment_loop import start_experiment_loop
 
 logger = logging.getLogger(__name__)

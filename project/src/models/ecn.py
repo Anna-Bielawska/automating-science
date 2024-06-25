@@ -4,7 +4,7 @@ from src.models.model_registry import register_model
 from src.utils.graph import get_global_pooling
 from torch.nn import functional as F
 from torch_geometric.data import Batch
-from torch_geometric.nn import MLP, NNConv, global_max_pool
+from torch_geometric.nn import MLP, NNConv
 
 # code based on: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/mnist_nn_conv.py
 
