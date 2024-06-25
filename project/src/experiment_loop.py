@@ -94,6 +94,7 @@ def pretrain_loop(
         loop_params=MutateLoopParams(),
         base_dir=hydra_output_dir / "pretraining/molecules",
         initial_dataset=compounds_sample,
+        seed=cfg.seed,
     )
 
     # gather high activity compounds for pretraining
@@ -183,6 +184,7 @@ def train_loop(
         loop_params=MutateLoopParams(),
         base_dir=hydra_output_dir / f"repeat_{repeat}/molecules",
         initial_dataset=compounds_sample,
+        seed=cfg.seed + repeat,
     )
 
     loop = create_loop(

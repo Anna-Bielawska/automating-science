@@ -7,19 +7,21 @@ from rdkit.Chem import MolFromSmiles as smi2mol
 from rdkit.Chem import MolToSmiles as mol2smi
 from selfies import decoder
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.utils.training import set_seed
 
 logger = logging.getLogger(__name__)
 
 
 class SelfieMutator:
-    def __init__(self, max_workers=4):
+    def __init__(self, max_workers=4, seed=0):
         """
         Initialize the SelfieMutator with a pool of worker processes.
 
         Args:
             max_workers (int): Number of worker processes to use.
+            seed (int): Seed for random number generation.
         """
-        self.executor = ProcessPoolExecutor(max_workers=max_workers)
+        self.executor = ProcessPoolExecutor(max_workers=max_workers, initializer=set_seed, initargs=(seed,))
 
     def parallel_mutate_selfies(
         self, selfies_list, max_molecules_len

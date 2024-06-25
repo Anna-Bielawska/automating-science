@@ -17,6 +17,7 @@ class MutateLoop(BaseLoop):
         initial_dataset (list[LeadCompound]): Initial dataset of lead compounds.
         base_dir (Path): Base directory.
         target (str): Target to optimize.
+        seed (int): Random seed.
     """
 
     def __init__(
@@ -25,11 +26,12 @@ class MutateLoop(BaseLoop):
         initial_dataset: list[LeadCompound],
         base_dir: Path,
         target: str = "GSK3β",
+        seed: int = 0,
     ):
         super().__init__(loop_params, base_dir, target)
         self.loop_params: MutateLoopParams
         self.initial_dataset = initial_dataset
-        self.selfie_mutator = SelfieMutator(max_workers=loop_params.n_workers)
+        self.selfie_mutator = SelfieMutator(max_workers=loop_params.n_workers, seed=seed)
 
     def _propose_random(self, n_candidates: int) -> list[LeadCompound]:
         """
