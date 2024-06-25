@@ -11,57 +11,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 logger = logging.getLogger(__name__)
 
 
-def get_ECFP4(mol: object) -> object:
-    """
-    Return rdkit ECFP4 fingerprint object for mol
-
-    Args:
-        mol (rdkit.Chem.rdchem.Mol): RdKit mol object
-
-    Returns:
-        rdkit.Chem.rdchem._DataStructs.ExplicitBitVect: ECFP4 fingerprint object
-    """
-    return AllChem.GetMorganFingerprint(mol, 2)
-
-
-def get_selfie_chars(selfie: str) -> list[str]:
-    """
-    Obtain a list of all selfie characters in string selfie
-
-    Args:
-        selfie (str) : A selfie string - representing a molecule
-
-    Returns:
-        chars_selfie: list of selfie characters present in molecule selfie
-
-    Example:
-    >>> get_selfie_chars('[C][=C][C][=C][C][=C][Ring1][Branch1_1]')
-    ['[C]', '[=C]', '[C]', '[=C]', '[C]', '[=C]', '[Ring1]', '[Branch1_1]']
-    """
-    chars_selfie = []  # A list of all SELFIE sybols from string selfie
-    while selfie != "":
-        chars_selfie.append(selfie[selfie.find("[") : selfie.find("]") + 1])
-        selfie = selfie[selfie.find("]") + 1 :]
-    return chars_selfie
-
-
-def sanitize_smiles(smi: str) -> tuple:
-    """Return a canonical smile representation of smi
-
-    Args:
-        smi (str): A SMILES string
-
-    Returns:
-        mol (rdkit.Chem.rdchem.Mol): RdKit mol object
-        smi_canon (str): Canonical SMILES representation of mol
-        True (bool): True if SMILES is valid, False otherwise
-    """
-
-    mol = smi2mol(smi, sanitize=True)
-    smi_canon = mol2smi(mol, isomericSmiles=False, canonical=True)
-    return (mol, smi_canon, True)
-
-
 class SelfieMutator:
     def __init__(self, max_workers=4):
         """
@@ -113,6 +62,57 @@ class SelfieMutator:
         Ensure the worker pool is properly shut down when the instance is deleted.
         """
         self.close()
+
+
+def get_ECFP4(mol: object) -> object:
+    """
+    Return rdkit ECFP4 fingerprint object for mol
+
+    Args:
+        mol (rdkit.Chem.rdchem.Mol): RdKit mol object
+
+    Returns:
+        rdkit.Chem.rdchem._DataStructs.ExplicitBitVect: ECFP4 fingerprint object
+    """
+    return AllChem.GetMorganFingerprint(mol, 2)
+
+
+def get_selfie_chars(selfie: str) -> list[str]:
+    """
+    Obtain a list of all selfie characters in string selfie
+
+    Args:
+        selfie (str) : A selfie string - representing a molecule
+
+    Returns:
+        chars_selfie: list of selfie characters present in molecule selfie
+
+    Example:
+    >>> get_selfie_chars('[C][=C][C][=C][C][=C][Ring1][Branch1_1]')
+    ['[C]', '[=C]', '[C]', '[=C]', '[C]', '[=C]', '[Ring1]', '[Branch1_1]']
+    """
+    chars_selfie = []  # A list of all SELFIE sybols from string selfie
+    while selfie != "":
+        chars_selfie.append(selfie[selfie.find("[") : selfie.find("]") + 1])
+        selfie = selfie[selfie.find("]") + 1 :]
+    return chars_selfie
+
+
+def sanitize_smiles(smi: str) -> tuple:
+    """Return a canonical smile representation of smi
+
+    Args:
+        smi (str): A SMILES string
+
+    Returns:
+        mol (rdkit.Chem.rdchem.Mol): RdKit mol object
+        smi_canon (str): Canonical SMILES representation of mol
+        True (bool): True if SMILES is valid, False otherwise
+    """
+
+    mol = smi2mol(smi, sanitize=True)
+    smi_canon = mol2smi(mol, isomericSmiles=False, canonical=True)
+    return (mol, smi_canon, True)
 
 
 def mutate_selfie(selfie: str, max_molecules_len: int, write_fail_cases: bool = False):
