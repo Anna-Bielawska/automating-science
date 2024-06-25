@@ -21,18 +21,23 @@ class ECN(torch.nn.Module):
         self.params = params
         self.global_pooling = get_global_pooling(params.global_pooling)
         self.concat_global_pooling = get_global_pooling(params.concat_global_pooling)
+        assert len(params.dimensions) == len(params.dropout_rates), \
+        f"Different number of hidden layers ({len(params.dimensions)}) and dropout rates ({len(params.dropout_rates)}) was specified."
 
         # 3 stands for the input edge features dimensionality
-        nn1 = MLP([3, 25, params.in_channels * params.hidden_channels], norm="batch_norm", dropout=0.3)
-        self.conv1 = NNConv(params.in_channels, params.hidden_channels, nn1, aggr='mean')
-        nn2 = MLP([3, 25, params.hidden_channels * params.hidden_channels], norm="batch_norm", dropout=0.3)
-        self.conv2 = NNConv(params.hidden_channels, params.hidden_channels, nn2, aggr='mean')
+        self.convs = torch.nn.ModuleList()
+        for i in range(len(params.dimensions)):
+            in_dim = params.in_channels if i == 0 else params.dimensions[i - 1]
+            nn = MLP([3, 25, in_dim * params.dimensions[i]], norm="batch_norm", dropout=params.dropout_rates[i])
+            self.convs.append(
+                NNConv(in_dim, params.dimensions[i], nn, aggr='mean')
+            )
 
         if self.concat_global_pooling:
-            self.fc = MLP([2*params.hidden_channels, params.out_channels],
+            self.fc = MLP([2*params.dimensions[-1], params.out_channels],
                            norm="batch_norm", dropout=0.3)
         else:
-            self.fc = MLP([params.hidden_channels, params.out_channels],
+            self.fc = MLP([params.dimensions[-1], params.out_channels],
                            norm="batch_norm", dropout=0.3)
 
     def forward(self, data: Batch) -> torch.Tensor:
@@ -50,10 +55,9 @@ class ECN(torch.nn.Module):
             data.edge_attr,
         )
         # Apply convolutions
-        x = self.conv1(x, edge_index, edge_attr)
-        x = F.elu(x, inplace=False)
-        x = self.conv2(x, edge_index, edge_attr)
-        x = F.elu(x, inplace=False)
+        for conv in self.convs:
+            x = conv(x, edge_index, edge_attr)
+            x = F.elu(x)
         # Apply global average pooling
         _x = x
         x = self.global_pooling(x, data.batch)

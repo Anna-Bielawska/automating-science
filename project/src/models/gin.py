@@ -19,23 +19,25 @@ class GIN(torch.nn.Module):
     def __init__(self, params: GraphIsomorphismNetworkParams):
         super().__init__()
         self.params = params
-        self.in_channels = params.in_channels  # initialize the input channels dim, it will be changed
         self.global_pooling = get_global_pooling(params.global_pooling)
         self.concat_global_pooling = get_global_pooling(params.concat_global_pooling)
+        assert len(params.dimensions) == len(params.dropout_rates), f"Different number of hidden layers \
+            ({len(params.dimensions)}) and dropout rates ({len(params.dropout_rates)} was specified.)"
 
         self.convs = torch.nn.ModuleList()
-        for _ in range(params.num_layers):
-            mlp = MLP([self.in_channels, params.hidden_channels],
-                      norm="batch_norm", dropout=0.3)
+
+        for i in range(len(params.dimensions)):
+            in_dim = params.in_channels if i == 0 else params.dimensions[i - 1]
+            mlp = MLP([in_dim, params.dimensions[i]],
+                      norm="batch_norm", dropout=params.dropout_rates[i])
             self.convs.append(GINConv(nn=mlp, train_eps=params.trainable_eps))
-            self.in_channels = params.hidden_channels  # update the input channels dim
 
         # simple FC on top for predictions
         if self.concat_global_pooling:
-            self.mlp = MLP([2*params.hidden_channels, params.out_channels],
+            self.mlp = MLP([2*params.dimensions[-1], params.out_channels],
                            norm="batch_norm", dropout=0.3)
         else:
-            self.mlp = MLP([params.hidden_channels, params.out_channels],
+            self.mlp = MLP([params.dimensions[-1], params.out_channels],
                            norm="batch_norm", dropout=0.3)
 
     def forward(self, data: Batch) -> torch.Tensor:

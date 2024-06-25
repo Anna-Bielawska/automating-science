@@ -21,24 +21,32 @@ class GAT(torch.nn.Module):
         self.params = params
         self.global_pooling = get_global_pooling(params.global_pooling)
         self.concat_global_pooling = get_global_pooling(params.concat_global_pooling)
-        self.conv1 = GATConv(
-            params.in_channels,
-            params.hidden_channels,
-            params.heads,
-            dropout=0.3
-        )
-        self.conv2 = GATConv(
-            params.hidden_channels * params.heads,
-            params.hidden_channels,
-            heads=1,
-            concat=False,
-            dropout=0.3,
-        )
+
+        assert params.heads[-1] == 1, f"Last GAT layer must have 1 attention head, but {params.heads[-1]} were specified"
+        assert len(params.dimensions) == len(params.dropout_rates), \
+        f"Different number of hidden layers ({len(params.dimensions)}) and dropout rates ({len(params.dropout_rates)}) was specified."
+        print(params.dimensions, params.heads)
+        assert len(params.heads) == len(params.dimensions), "Mismatch in the number of attention layers and corresponding heads"
+
+        self.convs = torch.nn.ModuleList()
+        for i in range(len(params.dimensions)):
+            in_dim = params.in_channels if i == 0 else params.dimensions[i - 1]
+            concat = False if i == len(params.dimensions)-1 else True
+            prev_heads = 1 if i == 0 else params.heads[i-1]
+
+            self.convs.append(GATConv(
+                in_dim * prev_heads,
+                params.dimensions[i],
+                heads=params.heads[i],
+                concat=concat,
+                dropout=params.dropout_rates[i]
+            ))
+        
         if self.concat_global_pooling:
-            self.fc = MLP([2*params.hidden_channels, params.out_channels],
+            self.fc = MLP([2*params.dimensions[-1], params.out_channels],
                            norm="batch_norm", dropout=0.3)
         else:
-            self.fc = MLP([params.hidden_channels, params.out_channels],
+            self.fc = MLP([params.dimensions[-1], params.out_channels],
                            norm="batch_norm", dropout=0.3)
 
     def forward(self, data: Batch) -> torch.Tensor:
@@ -54,10 +62,9 @@ class GAT(torch.nn.Module):
             data.edge_index,
             data.edge_attr,
         )
-        x = F.dropout(x, p=0.3, training=self.training)
-        x = F.elu(self.conv1(x, edge_index, edge_attr))
-        x = F.dropout(x, p=0.3, training=self.training)
-        x = self.conv2(x, edge_index, edge_attr)
+        for conv in self.convs:
+            x = conv(x, edge_index, edge_attr)
+            x = F.elu(x)
         # Apply global average pooling
         _x = x
         x = self.global_pooling(x, data.batch)
