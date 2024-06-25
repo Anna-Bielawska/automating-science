@@ -61,7 +61,7 @@ class GCN2Layer(nn.Module):
         h = self.dropout(x)
         h = self.conv(h, x_0, edge_index, edge_weight)
         x = h + x
-        x = self.batch_norms(x)
+        x = self.batch_norm(x)
         x = self.relu(x)
         return x
 
