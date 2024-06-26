@@ -6,8 +6,64 @@ from rdkit.Chem import AllChem
 from rdkit.Chem import MolFromSmiles as smi2mol
 from rdkit.Chem import MolToSmiles as mol2smi
 from selfies import decoder
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from src.utils.training import set_seed
 
 logger = logging.getLogger(__name__)
+
+
+class SelfieMutator:
+    def __init__(self, max_workers=4, seed=0):
+        """
+        Initialize the SelfieMutator with a pool of worker processes.
+
+        Args:
+            max_workers (int): Number of worker processes to use.
+            seed (int): Seed for random number generation.
+        """
+        self.executor = ProcessPoolExecutor(max_workers=max_workers, initializer=set_seed, initargs=(seed,))
+
+    def parallel_mutate_selfies(
+        self, selfies_list, max_molecules_len
+    ):
+        """
+        Parallelize the mutation of multiple SELFIE strings.
+
+        Args:
+            selfies_list (list): List of SELFIE strings to mutate.
+            max_molecules_len (int): Maximum length of molecules.
+
+        Returns:
+            list: List of tuples containing mutated selfies and their canonical SMILES.
+        """
+        results = []
+        future_to_selfie = {
+            self.executor.submit(
+                mutate_selfie, selfie, max_molecules_len
+            ): selfie
+            for selfie in selfies_list
+        }
+
+        for future in as_completed(future_to_selfie):
+            selfie = future_to_selfie[future]
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as exc:
+                logger.error(f"SELFIE mutation generated an exception for {selfie}: {exc}")
+        return results
+
+    def close(self):
+        """
+        Shutdown the worker pool.
+        """
+        self.executor.shutdown(wait=True)
+
+    def __del__(self):
+        """
+        Ensure the worker pool is properly shut down when the instance is deleted.
+        """
+        self.close()
 
 
 def get_ECFP4(mol: object) -> object:
@@ -130,11 +186,10 @@ def mutate_selfie(selfie: str, max_molecules_len: int, write_fail_cases: bool = 
             raise Exception("Invalid Operation trying to be performed")
 
         selfie_mutated = "".join(x for x in selfie_mutated_chars)
-        sf = "".join(x for x in chars_selfie)
 
         try:
             smiles = decoder(selfie_mutated)
-            mol, smiles_canon, done = sanitize_smiles(smiles)
+            _, smiles_canon, done = sanitize_smiles(smiles)
             if len(selfie_mutated_chars) > max_molecules_len or smiles_canon == "":
                 done = False
             if done:
@@ -144,15 +199,5 @@ def mutate_selfie(selfie: str, max_molecules_len: int, write_fail_cases: bool = 
         except Exception as e:
             logger.error(f"Failed to decode SELFIE: {e}")
             valid = False
-            if fail_counter > 1 and write_fail_cases is True:
-                f = open("selfie_failure_cases.txt", "a+")
-                f.write(
-                    "Tried to mutate SELFIE: "
-                    + str(sf)
-                    + " To Obtain: "
-                    + str(selfie_mutated)
-                    + "\n"
-                )
-                f.close()
 
     return (selfie_mutated, smiles_canon)

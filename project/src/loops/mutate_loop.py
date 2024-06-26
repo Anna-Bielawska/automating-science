@@ -5,7 +5,7 @@ import selfies
 from config.loops import MutateLoopParams
 from src.loops.base_loop import BaseLoop
 from src.utils.molecules import LeadCompound, compute_ertl_score
-from src.utils.mutate import mutate_selfie
+from src.utils.mutate import SelfieMutator
 
 
 class MutateLoop(BaseLoop):
@@ -17,6 +17,7 @@ class MutateLoop(BaseLoop):
         initial_dataset (list[LeadCompound]): Initial dataset of lead compounds.
         base_dir (Path): Base directory.
         target (str): Target to optimize.
+        seed (int): Random seed.
     """
 
     def __init__(
@@ -25,10 +26,12 @@ class MutateLoop(BaseLoop):
         initial_dataset: list[LeadCompound],
         base_dir: Path,
         target: str = "GSK3β",
+        seed: int = 0,
     ):
         super().__init__(loop_params, base_dir, target)
         self.loop_params: MutateLoopParams
         self.initial_dataset = initial_dataset
+        self.selfie_mutator = SelfieMutator(max_workers=loop_params.n_workers, seed=seed)
 
     def _propose_random(self, n_candidates: int) -> list[LeadCompound]:
         """
@@ -78,19 +81,20 @@ class MutateLoop(BaseLoop):
 
         new_compounds = []
         while len(set(new_compounds)) < n_candidates:
-            for selfie in selfie_candidates:
-                new_selfie = selfies.decoder(
-                    mutate_selfie(selfie, max_molecules_len=100)[0]
-                )
-                if (
-                    compute_ertl_score(new_selfie) > 1.0
-                    and compute_ertl_score(new_selfie) < 4.0
-                ):
-                    new_compounds.append(new_selfie)
-                if len(set(new_compounds)) == n_candidates:
-                    break
+            new_selfies = self.selfie_mutator.parallel_mutate_selfies(
+                selfie_candidates, max_molecules_len=100
+            )
+            for new_selfie in new_selfies:
+                decoded_selfie = selfies.decoder(new_selfie[0])
+                if 1.0 < compute_ertl_score(decoded_selfie) < 4.0:
+                    if len(set(new_compounds)) < n_candidates:
+                        new_compounds.append(decoded_selfie)
+                    else:
+                        break
 
         new_compounds = set(new_compounds)
 
         assert len(new_compounds) == n_candidates
-        return sorted([LeadCompound(smiles=c) for c in new_compounds], key=lambda x: x.smiles)
+        return sorted(
+            [LeadCompound(smiles=c) for c in new_compounds], key=lambda x: x.smiles
+        )
